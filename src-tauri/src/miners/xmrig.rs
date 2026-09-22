@@ -90,9 +90,10 @@ impl MinerAdapter for XmrigAdapter {
         self.api_port = req.api_port;
         self.last_error = None;
 
+        let intensity = crate::safety::clamp_ratio(req.intensity);
         if req.mock_mode {
             self.started_at = Some(Instant::now());
-            self.last_hashrate = 5500.0 * req.intensity;
+            self.last_hashrate = 5500.0 * intensity;
             return Ok(());
         }
 
@@ -103,9 +104,7 @@ impl MinerAdapter for XmrigAdapter {
             ));
         }
 
-        let threads = ((num_cpus_approx() as f64) * req.threads_ratio)
-            .round()
-            .max(1.0) as u32;
+        let threads = crate::safety::capped_thread_count(num_cpus_approx(), req.threads_ratio);
 
         let mut cmd = Command::new(&req.binary_path);
         cmd.arg("-o")
@@ -118,6 +117,9 @@ impl MinerAdapter for XmrigAdapter {
             .arg("rx/0")
             .arg("--threads")
             .arg(threads.to_string())
+            // Below normal so the desktop stays usable even at the 95% cap.
+            .arg("--cpu-priority")
+            .arg("1")
             .arg("--http-host")
             .arg("127.0.0.1")
             .arg("--http-port")

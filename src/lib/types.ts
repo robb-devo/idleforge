@@ -1,3 +1,12 @@
+/** Hard cap: miner intensity, thread ratio, and GPU power never exceed 95%. */
+export const MAX_SYSTEM_LOAD = 0.95;
+export const MAX_POWER_PERCENT = 95;
+
+export function clampLoad(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(MAX_SYSTEM_LOAD, Math.max(0, value));
+}
+
 export type ProfileId = "idle" | "low" | "medium" | "high" | "extreme";
 
 export type MinerKind = "cpu" | "gpu";
@@ -100,6 +109,7 @@ export interface HardwareInfo {
   ram_gb: number | null;
   on_battery: boolean | null;
   sensors_available: boolean;
+  system_cpu_percent: number | null;
   note: string;
 }
 
@@ -213,10 +223,10 @@ export const DEFAULT_CONFIG: AppConfig = {
     },
     extreme: {
       label: "Extrem",
-      cpu_intensity: 1.0,
-      gpu_intensity: 1.0,
-      cpu_threads_ratio: 1.0,
-      gpu_power_limit_percent: 100,
+      cpu_intensity: 0.95,
+      gpu_intensity: 0.95,
+      cpu_threads_ratio: 0.95,
+      gpu_power_limit_percent: 95,
     },
   },
   wallets: [

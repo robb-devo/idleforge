@@ -9,6 +9,7 @@ pub struct HardwareInfo {
     pub ram_gb: Option<f64>,
     pub on_battery: Option<bool>,
     pub sensors_available: bool,
+    pub system_cpu_percent: Option<f64>,
     pub note: String,
 }
 
@@ -51,6 +52,12 @@ impl SensorHub {
 
         let ram_gb = Some(self.sys.total_memory() as f64 / (1024.0 * 1024.0 * 1024.0));
         let on_battery = detect_on_battery();
+        let cpu_usage = self.sys.global_cpu_usage();
+        let system_cpu_percent = if cpu_usage.is_finite() {
+            Some(cpu_usage as f64)
+        } else {
+            None
+        };
 
         HardwareInfo {
             cpu_name,
@@ -58,12 +65,13 @@ impl SensorHub {
             cpu_cores: self.sys.cpus().len() as u32,
             ram_gb,
             on_battery,
-            sensors_available: cfg!(windows) || true,
+            sensors_available: true,
+            system_cpu_percent,
             note: if cfg!(windows) {
-                "Windows-Sensoren: CPU über sysinfo; GPU-Temp/Leistung best-effort (NVAPI/nvidia-smi falls verfügbar)."
+                "Echte Hardware (Tauri): CPU-Name und Last über sysinfo, GPU über nvidia-smi oder Win32_VideoController. Miner-Mock betrifft nur Hashrate, nicht die Gerätenamen."
                     .into()
             } else {
-                "Nicht-Windows-Host: Sensoren degradiert. IdleForge zielt auf Windows-Desktops."
+                "Tauri-Sensoren: CPU-Name ist echt. GPU-Name braucht nvidia-smi oder Windows-WMI. Diese Umgebung ist nicht das Windows-Ziel."
                     .into()
             },
         }
@@ -86,13 +94,42 @@ impl SensorHub {
 }
 
 fn detect_gpu_name() -> Option<String> {
+    if let Some(name) = read_nvidia_smi_name() {
+        return Some(name);
+    }
+    read_gpu_via_cim()
+}
+
+fn read_gpu_via_cim() -> Option<String> {
     #[cfg(windows)]
     {
-        if let Some(name) = read_nvidia_smi_name() {
-            return Some(name);
+        let output = std::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "(Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name) -join ' · '",
+            ])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let name = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join(" · ");
+        if name.is_empty() {
+            None
+        } else {
+            Some(name)
         }
     }
-    read_nvidia_smi_name()
+    #[cfg(not(windows))]
+    {
+        None
+    }
 }
 
 fn read_nvidia_smi_name() -> Option<String> {

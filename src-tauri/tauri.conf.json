@@ -19,7 +19,8 @@
         "minHeight": 640,
         "resizable": true,
         "decorations": true,
-        "center": true
+        "center": true,
+        "theme": "Dark"
       }
     ],
     "security": {
@@ -28,7 +29,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "nsis"],
+    "targets": ["nsis", "msi"],
+    "publisher": "IdleForge",
+    "shortDescription": "Windows-Steuerung für externe CPU- und GPU-Miner",
+    "longDescription": "IdleForge startet externe Miner (Phase 1: XMRig/XMR). Keine Algorithmen im Programm. Last ist auf 95% begrenzt.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -38,7 +42,15 @@
     ],
     "windows": {
       "webviewInstallMode": {
-        "type": "downloadBootstrapper"
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "languages": ["German", "English"],
+        "startMenuFolder": "IdleForge",
+        "installerIcon": "icons/icon.ico"
       }
     }
   }

@@ -16,12 +16,17 @@ export function WalletManager({ config, onSwitch, onAdd }: Props) {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!label.trim() || !address.trim()) return;
+    const receive = address.trim();
+    if (!label.trim() || !receive) return;
+    if (receive.split(/\s+/).length !== 1) {
+      window.alert("Nur eine öffentliche Empfangsadresse — keine Seed-Phrase oder privater Schlüssel.");
+      return;
+    }
     onAdd({
       id: `${coin.toLowerCase()}-${Date.now()}`,
       label: label.trim(),
       coin,
-      receive_address: address.trim(),
+      receive_address: receive,
       pool_worker: worker.trim() || "idleforge",
     });
     setLabel("");

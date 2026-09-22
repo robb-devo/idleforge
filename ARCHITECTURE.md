@@ -56,7 +56,7 @@ Plus dedicated **CPU** and **GPU** channel cards (independent Start/Stop).
 
 | Control | Behavior |
 |---------|----------|
-| Profiles | `idle` · `low` · `medium` · `high` · `extreme` |
+| Profiles | `idle` · `low` · `medium` · `high` · `extreme` — **max 95%** |
 | Start/Stop | Per channel + **Alles starten / Alles stoppen** |
 | Temp protection | Adaptive → `temp_limit` → effective low / throttle |
 | Netzteil / Akku | Sensors; `pause_on_battery` → pause mining |
@@ -73,7 +73,8 @@ commands.rs     Tauri IPC
 state.rs        Runtime orchestration
 config.rs       %APPDATA%/IdleForge/config.json
 adaptive/       Idle ramp, active reduce, temp/power/battery
-sensors/        sysinfo + nvidia-smi + battery (graceful degradation)
+safety.rs       Hard 95% cap (intensity, threads, GPU power)
+sensors/        sysinfo + nvidia-smi / WMI GPU + battery
 miners/
   adapter.rs    MinerAdapter trait (extensibility seam)
   xmrig.rs      Phase 1 — CPU XMR RandomX (external process)
@@ -88,8 +89,13 @@ stop()               → kill child
 poll_stats()         → HTTP API / stdout → hashrate, shares, …
 ```
 
-Intensity = **profile × adaptive factor**. Channels are independent.  
-Adding a miner later = new adapter module + config `adapter` id — no algorithm code.
+Intensity = **profile × adaptive factor**, then clamped by `safety.rs` to **≤ 95%**. Channels are independent. Adaptive factors cannot amplify past 1.0, and thread counts always leave at least one logical CPU free. XMRig is started below normal priority.
+
+Adding a miner later = new adapter module + config `adapter` id — no algorithm code. Call `clamp_start` before spawn so new adapters inherit the cap.
+
+### Hardware under Tauri
+
+`SensorHub` reports the real CPU brand and a live system CPU%. GPU name comes from `nvidia-smi`, or on Windows from `Win32_VideoController`. Browser `npm run dev` uses labeled demo names. `mock_mode` simulates miner hashrate only; it does not replace Tauri hardware identity.
 
 ### Mining scope
 

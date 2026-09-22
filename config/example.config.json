@@ -55,10 +55,10 @@
     },
     "extreme": {
       "label": "Extrem",
-      "cpu_intensity": 1.0,
-      "gpu_intensity": 1.0,
-      "cpu_threads_ratio": 1.0,
-      "gpu_power_limit_percent": 100
+      "cpu_intensity": 0.95,
+      "gpu_intensity": 0.95,
+      "cpu_threads_ratio": 0.95,
+      "gpu_power_limit_percent": 95
     }
   },
   "wallets": [

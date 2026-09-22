@@ -39,9 +39,11 @@ Voraussetzungen: [Tauri 2 auf Windows](https://tauri.app/start/prerequisites/) (
 ```bash
 npm install
 npm run tauri:dev
-# oder Release:
+# Release-Installer (auf Windows ausführen):
 npm run tauri:build
 ```
+
+Der NSIS-Installer liegt danach unter `src-tauri/target/release/bundle/nsis/` (`IdleForge_*_x64-setup.exe`). Doppelklick installiert für den aktuellen Benutzer (kein Admin nötig) und legt einen Startmenü-Eintrag an. Parallel entsteht ein MSI unter `bundle/msi/`. In der installierten App kommen CPU-/GPU-Namen und die Systemlast von echten Sensoren (`sysinfo`, `nvidia-smi` oder `Win32_VideoController`) — der Mock betrifft nur Miner-Hashrates, solange `mock_mode` an ist.
 
 CPU und GPU lassen sich **unabhängig** starten/stoppen.
 
@@ -56,6 +58,10 @@ Für moderne NVIDIA-GPUs ist **KawPow (Ravencoin)** ein sinnvolles, weiterhin ak
 
 ---
 
+## Sicherheitslimit — maximal 95%
+
+IdleForge fordert **niemals 100%** der Maschine an. Extrem ist das Maximum und liegt bei **95%** Intensität, Threads und GPU-Power. Adaptive Regeln und manuelle Config-Werte werden zur Laufzeit auf dieses Limit geklemmt (auch wenn eine Datei `1.0` / `100` enthält). Mindestens ein logischer CPU-Kern bleibt frei; XMRig startet mit `--cpu-priority 1` (unter Normal), damit Windows bedienbar bleibt.
+
 ## Profile
 
 | ID | DE | Bedeutung |
@@ -64,9 +70,9 @@ Für moderne NVIDIA-GPUs ist **KawPow (Ravencoin)** ein sinnvolles, weiterhin ak
 | `low` | Niedrig | Schonend |
 | `medium` | Mittel | Alltag (Default) |
 | `high` | Hoch | Aggressiver |
-| `extreme` | Extrem | Maximum laut Config |
+| `extreme` | Extrem | Hartes Maximum: **95%** CPU und GPU |
 
-Adaptive Regeln können unter das gewählte Profil **drosseln** oder pausieren.
+Adaptive Regeln können unter das gewählte Profil **drosseln** oder pausieren. Sie können das 95%-Limit nicht überschreiben.
 
 ---
 

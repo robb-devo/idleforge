@@ -121,7 +121,14 @@ impl AppStateInner {
         if self.hardware_cache.is_none() {
             self.hardware_cache = Some(self.sensors.hardware());
         }
-        self.hardware_cache.clone().unwrap()
+        let mut hw = self.hardware_cache.clone().unwrap();
+        // Names stay cached; live load and power source refresh every snapshot.
+        hw.system_cpu_percent = self.last_sensors.system_cpu_percent;
+        hw.on_battery = self.last_sensors.on_battery.or(hw.on_battery);
+        if hw.note.is_empty() {
+            hw.note = "Hardware via Tauri-Sensoren (echte Gerätenamen).".into();
+        }
+        hw
     }
 
     fn profile_key(&self) -> String {
@@ -143,10 +150,15 @@ impl AppStateInner {
             .get(&key)
             .or_else(|| self.config.profiles.get("medium"))
             .expect("profiles must contain medium");
-        match kind {
+        let (intensity, threads, power) = match kind {
             MinerKind::Cpu => (p.cpu_intensity, p.cpu_threads_ratio, p.gpu_power_limit_percent),
             MinerKind::Gpu => (p.gpu_intensity, p.cpu_threads_ratio, p.gpu_power_limit_percent),
-        }
+        };
+        (
+            crate::safety::clamp_ratio(intensity),
+            crate::safety::clamp_ratio(threads),
+            crate::safety::clamp_power_percent(power),
+        )
     }
 
     fn wallet_for(&self, kind: MinerKind) -> Option<&Wallet> {
@@ -186,7 +198,7 @@ impl AppStateInner {
             MinerKind::Cpu => channel.http_api_port.unwrap_or(18088),
             MinerKind::Gpu => channel.api_port.unwrap_or(18089),
         };
-        Ok(StartRequest {
+        let mut req = StartRequest {
             binary_path: channel.binary_path.clone(),
             pool_url: channel.pool.url.clone(),
             user,
@@ -198,14 +210,16 @@ impl AppStateInner {
             api_port,
             extra_args: channel.extra_args.clone(),
             mock_mode: self.config.mock_mode,
-        })
+        };
+        crate::safety::clamp_start(&mut req);
+        Ok(req)
     }
 
     pub fn start(&mut self, kind: MinerKind) -> Result<(), String> {
         let status = self.current_adaptive();
-        let factor = AdaptiveController::intensity_factor(&status, &self.config.adaptive);
+        let factor = AdaptiveController::intensity_factor(&status, &self.config.adaptive).clamp(0.0, 1.0);
         let (base_i, threads, power_pct) = self.profile_params(kind, &status.effective_profile);
-        let intensity = base_i * factor;
+        let intensity = crate::safety::clamp_ratio(base_i * factor);
         let req = self.build_start(kind, intensity, threads, power_pct)?;
 
         match kind {
@@ -276,10 +290,11 @@ impl AppStateInner {
     }
 
     fn refresh_channel(&mut self, kind: MinerKind, adaptive: &AdaptiveStatus) {
-        let factor = AdaptiveController::intensity_factor(adaptive, &self.config.adaptive);
+        let factor =
+            AdaptiveController::intensity_factor(adaptive, &self.config.adaptive).clamp(0.0, 1.0);
         let (base_i, threads, power_pct) =
             self.profile_params(kind, &adaptive.effective_profile);
-        let target_intensity = base_i * factor;
+        let target_intensity = crate::safety::clamp_ratio(base_i * factor);
 
         let desired = match kind {
             MinerKind::Cpu => self.cpu_rt.desired_running,
@@ -363,7 +378,8 @@ impl AppStateInner {
             };
         }
         if rt.last_stats.utilization_percent.is_none() {
-            rt.last_stats.utilization_percent = Some(rt.intensity * 100.0);
+            rt.last_stats.utilization_percent =
+                Some((rt.intensity * 100.0).min(crate::safety::MAX_POWER_PERCENT));
         }
 
         if self.config.mock_mode && target_intensity > 0.01 {
@@ -525,10 +541,7 @@ impl AppStateInner {
     }
 
     pub fn add_wallet(&mut self, wallet: Wallet) -> Result<(), String> {
-        let label_l = wallet.label.to_lowercase();
-        if label_l.contains("seed") || label_l.contains("private key") {
-            return Err("Seed-Phrasen / Private Keys sind nicht erlaubt.".into());
-        }
+        crate::safety::validate_receive_address(&wallet.receive_address)?;
         self.config.wallets.push(wallet);
         save_config(&self.config)
     }
@@ -562,7 +575,11 @@ impl AppStateInner {
         self.adaptive.report_activity(active);
     }
 
-    pub fn save(&mut self, config: AppConfig) -> Result<(), String> {
+    pub fn save(&mut self, mut config: AppConfig) -> Result<(), String> {
+        for wallet in &config.wallets {
+            crate::safety::validate_receive_address(&wallet.receive_address)?;
+        }
+        crate::safety::enforce_config_caps(&mut config);
         self.config = config;
         save_config(&self.config)
     }

@@ -129,15 +129,18 @@ pub fn config_path() -> PathBuf {
 
 pub fn load_config() -> AppConfig {
     let path = config_path();
-    if path.exists() {
-        if let Ok(raw) = fs::read_to_string(&path) {
-            if let Ok(cfg) = serde_json::from_str::<AppConfig>(&raw) {
-                return cfg;
-            }
-        }
+    let mut cfg = if path.exists() {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|raw| serde_json::from_str::<AppConfig>(&raw).ok())
+            .unwrap_or_else(AppConfig::default)
+    } else {
+        AppConfig::default()
+    };
+    crate::safety::enforce_config_caps(&mut cfg);
+    if !path.exists() {
+        let _ = save_config(&cfg);
     }
-    let cfg = AppConfig::default();
-    let _ = save_config(&cfg);
     cfg
 }
 

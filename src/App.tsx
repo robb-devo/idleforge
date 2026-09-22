@@ -226,7 +226,7 @@ export default function App() {
               <div className="section-header">
                 <div>
                   <h2>Leistungsprofile</h2>
-                  <p>Idle bis Extrem — Adaptive Regeln können unter das Zielprofil drosseln.</p>
+                  <p>Idle bis Extrem. Hartes Maximum 95% — Windows behält Luft.</p>
                 </div>
               </div>
               <ProfileSelector
@@ -289,9 +289,11 @@ export default function App() {
                   </div>
                 </div>
                 <div className="stat">
-                  <div className="stat-label">Sensoren</div>
+                  <div className="stat-label">System-CPU</div>
                   <div className="stat-value">
-                    {snapshot.hardware.sensors_available ? "Verfügbar" : "Degradiert"}
+                    {snapshot.hardware.system_cpu_percent == null
+                      ? "n/v"
+                      : `${Math.round(snapshot.hardware.system_cpu_percent)}%`}
                   </div>
                 </div>
               </div>

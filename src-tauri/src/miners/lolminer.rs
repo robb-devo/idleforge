@@ -103,9 +103,10 @@ impl MinerAdapter for LolMinerAdapter {
         self.api_port = req.api_port;
         self.last_error = None;
 
+        let intensity = crate::safety::clamp_ratio(req.intensity);
         if req.mock_mode {
             self.started_at = Some(Instant::now());
-            self.last_hashrate = 28.5e6 * req.intensity;
+            self.last_hashrate = 28.5e6 * intensity;
             return Ok(());
         }
 
@@ -136,12 +137,8 @@ impl MinerAdapter for LolMinerAdapter {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        // Best-effort power limit hint when intensity < 1 (driver/tooling dependent).
-        if req.power_limit_percent < 100.0 {
-            cmd.arg("--cclk");
-            cmd.arg("0"); // placeholder; users should tune via nvidia tools / extra_args
-        }
-
+        // Power target is clamped to <= 95% before spawn (safety cap).
+        // Clock/power tweaks belong in extra_args — this adapter never requests 100%.
         for a in &req.extra_args {
             cmd.arg(a);
         }

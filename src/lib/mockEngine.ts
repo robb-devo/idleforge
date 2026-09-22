@@ -10,6 +10,7 @@ import {
   MinerRunState,
   ProfileId,
   Wallet,
+  clampLoad,
 } from "./types";
 
 function cloneConfig(): AppConfig {
@@ -65,7 +66,8 @@ export class MockEngine {
       ram_gb: 32,
       on_battery: false,
       sensors_available: true,
-      note: "Mock-Modus: Sensoren und Miner werden simuliert. Referenzhardware nur als Beispiel.",
+      system_cpu_percent: null,
+      note: "Browser-Demo: Gerätenamen sind Platzhalter. Die Tauri-Windows-App zeigt echte CPU/GPU-Namen.",
     };
   }
 
@@ -190,9 +192,10 @@ export class MockEngine {
   private intensityFor(kind: MinerKind, adaptive: AdaptiveStatus): number {
     if (adaptive.effective_profile === "pause") return 0;
     const profile = this.config.profiles[adaptive.effective_profile];
-    const base = kind === "cpu" ? profile.cpu_intensity : profile.gpu_intensity;
+    const base = clampLoad(kind === "cpu" ? profile.cpu_intensity : profile.gpu_intensity);
     if (adaptive.mode === "active_reduce") {
-      return base * this.config.adaptive.reduce_factor_on_active;
+      const factor = Math.min(1, Math.max(0, this.config.adaptive.reduce_factor_on_active));
+      return clampLoad(base * factor);
     }
     return base;
   }
@@ -243,7 +246,7 @@ export class MockEngine {
       state,
       hashrate_hs: kind === "cpu" ? cpuHash : gpuHashMh * 1e6,
       hashrate_unit: kind === "cpu" ? "H/s" : "MH/s",
-      utilization_percent: Math.round(intensity * 100 * jitter),
+      utilization_percent: Math.min(95, Math.round(intensity * 100 * jitter)),
       temperature_c: Math.round(temp * 10) / 10,
       power_w: Math.round((kind === "cpu" ? 35 + intensity * 55 : 40 + intensity * 90) * 10) / 10,
       accepted_shares: shares.accepted,
