@@ -129,6 +129,10 @@ impl MinerAdapter for XmrigAdapter {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
+        if crate::miners::adapter::pool_wants_tls(req.tls, &req.pool_url) {
+            cmd.arg("--tls");
+        }
+
         for a in &req.extra_args {
             cmd.arg(a);
         }

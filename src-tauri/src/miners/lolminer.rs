@@ -137,6 +137,11 @@ impl MinerAdapter for LolMinerAdapter {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
+        // MoneroOcean and other TLS pools: `gulf.moneroocean.stream:20128 --tls on`
+        if crate::miners::adapter::pool_wants_tls(req.tls, &req.pool_url) {
+            cmd.arg("--tls").arg("on");
+        }
+
         // Power target is clamped to <= 95% before spawn (safety cap).
         // Clock/power tweaks belong in extra_args — this adapter never requests 100%.
         for a in &req.extra_args {

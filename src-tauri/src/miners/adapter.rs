@@ -42,6 +42,17 @@ pub struct StartRequest {
     pub api_port: u16,
     pub extra_args: Vec<String>,
     pub mock_mode: bool,
+    /// From `pool.tls`. Adapters also enable TLS when the URL uses port 443 or contains `ssl`.
+    pub tls: bool,
+}
+
+/// TLS is required for SupportXMR (`:443`) and pools that set `pool.tls` or embed `ssl` in the URL.
+pub fn pool_wants_tls(tls_flag: bool, url: &str) -> bool {
+    if tls_flag {
+        return true;
+    }
+    let url = url.trim().to_ascii_lowercase();
+    url.contains("ssl") || url.ends_with(":443") || url.contains(":443/") || url.contains(":443?")
 }
 
 pub trait MinerAdapter: Send {
@@ -55,4 +66,18 @@ pub trait MinerAdapter: Send {
     fn is_running(&self) -> bool;
     fn poll_stats(&mut self) -> Result<MinerStats, String>;
     fn last_error(&self) -> Option<String>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pool_wants_tls;
+
+    #[test]
+    fn tls_for_supportxmr_and_explicit_flag() {
+        assert!(pool_wants_tls(true, "pool.supportxmr.com:443"));
+        assert!(pool_wants_tls(false, "pool.supportxmr.com:443"));
+        assert!(pool_wants_tls(false, "stratum+ssl://pool.example.com:3333"));
+        assert!(pool_wants_tls(true, "gulf.moneroocean.stream:20128"));
+        assert!(!pool_wants_tls(false, "pool.example.com:3333"));
+    }
 }

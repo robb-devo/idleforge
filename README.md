@@ -45,7 +45,7 @@ npm run tauri:build
 
 Der NSIS-Installer liegt danach unter `src-tauri/target/release/bundle/nsis/` (`IdleForge_*_x64-setup.exe`). Doppelklick installiert für den aktuellen Benutzer (kein Admin nötig) und legt einen Startmenü-Eintrag an. Parallel entsteht ein MSI unter `bundle/msi/`. In der installierten App kommen CPU-/GPU-Namen und die Systemlast von echten Sensoren (`sysinfo`, `nvidia-smi` oder `Win32_VideoController`) — der Mock betrifft nur Miner-Hashrates, solange `mock_mode` an ist.
 
-CPU und GPU lassen sich **unabhängig** starten/stoppen.
+CPU und GPU lassen sich **unabhängig** starten/stoppen. Ist `pool.tls` gesetzt, der Port `:443`, oder die URL enthält `ssl`, hängt IdleForge bei XMRig `--tls` und bei lolMiner `--tls on` an (nötig für SupportXMR und MoneroOcean).
 
 | Kanal | Coin | Algorithmus | Adapter | Binary (Beispiel) |
 |-------|------|-------------|---------|-------------------|

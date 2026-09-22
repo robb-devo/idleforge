@@ -212,6 +212,7 @@ impl AppStateInner {
             api_port,
             extra_args: channel.extra_args.clone(),
             mock_mode: self.config.mock_mode,
+            tls: channel.pool.tls,
         };
         crate::safety::clamp_start(&mut req);
         Ok(req)
