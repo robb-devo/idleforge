@@ -148,7 +148,7 @@ export class MockEngine {
       };
     }
 
-    const systemCpu = this.userActive ? 48 + Math.sin(this.tick / 8) * 8 : 14 + Math.sin(this.tick / 11) * 4;
+    const systemCpu = this.userActive ? 45 : 15;
 
     if (systemCpu >= a.high_load_threshold_percent) {
       return {
@@ -174,8 +174,8 @@ export class MockEngine {
       return {
         mode: "idle_ramp",
         effective_profile: "low",
-        message: `Leerlauf ${this.idleSeconds}s — Ramp läuft an…`,
-        idle_seconds: this.idleSeconds,
+        message: `Leerlauf ${Math.floor(this.idleSeconds / 15) * 15}s — Ramp läuft an…`,
+        idle_seconds: Math.floor(this.idleSeconds / 15) * 15,
         system_cpu_percent: systemCpu,
       };
     }

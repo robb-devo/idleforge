@@ -67,6 +67,7 @@ struct ChannelRuntime {
     last_stats: MinerStats,
     state: MinerRunState,
     error: Option<String>,
+    last_reconfigure: Option<Instant>,
 }
 
 impl ChannelRuntime {
@@ -85,6 +86,7 @@ impl ChannelRuntime {
             },
             state: MinerRunState::Stopped,
             error: None,
+            last_reconfigure: None,
         }
     }
 }
@@ -313,16 +315,30 @@ impl AppStateInner {
             MinerKind::Gpu => self.gpu_rt.intensity,
         };
 
-        if (current_intensity - target_intensity).abs() > 0.08 {
+        let last_reconfigure = match kind {
+            MinerKind::Cpu => self.cpu_rt.last_reconfigure,
+            MinerKind::Gpu => self.gpu_rt.last_reconfigure,
+        };
+        let reconfigure_due = last_reconfigure
+            .map(|t| t.elapsed() >= std::time::Duration::from_secs(30))
+            .unwrap_or(true);
+        if reconfigure_due && (current_intensity - target_intensity).abs() > 0.12 {
             if let Ok(req) = self.build_start(kind, target_intensity, threads, power_pct) {
                 let result = match kind {
                     MinerKind::Cpu => self.cpu.start(&req),
                     MinerKind::Gpu => self.gpu.start(&req),
                 };
                 if result.is_ok() {
+                    let now = Instant::now();
                     match kind {
-                        MinerKind::Cpu => self.cpu_rt.intensity = target_intensity,
-                        MinerKind::Gpu => self.gpu_rt.intensity = target_intensity,
+                        MinerKind::Cpu => {
+                            self.cpu_rt.intensity = target_intensity;
+                            self.cpu_rt.last_reconfigure = Some(now);
+                        }
+                        MinerKind::Gpu => {
+                            self.gpu_rt.intensity = target_intensity;
+                            self.gpu_rt.last_reconfigure = Some(now);
+                        }
                     }
                 }
             }

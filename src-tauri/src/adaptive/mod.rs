@@ -28,6 +28,8 @@ pub struct AdaptiveStatus {
 pub struct AdaptiveController {
     last_activity: Instant,
     user_active: bool,
+    /// Stay reduced until load falls well below the threshold (stops mode flapping).
+    latched_reduce: bool,
 }
 
 impl AdaptiveController {
@@ -37,6 +39,7 @@ impl AdaptiveController {
                 .checked_sub(std::time::Duration::from_secs(120))
                 .unwrap_or_else(Instant::now),
             user_active: false,
+            latched_reduce: false,
         }
     }
 
@@ -48,7 +51,7 @@ impl AdaptiveController {
     }
 
     pub fn evaluate(
-        &self,
+        &mut self,
         adaptive: &AdaptiveConfig,
         power: &PowerConfig,
         target: &ProfileId,
@@ -57,7 +60,8 @@ impl AdaptiveController {
         gpu_temp: Option<f64>,
     ) -> AdaptiveStatus {
         let idle_seconds = self.last_activity.elapsed().as_secs();
-        let sys_cpu = sensors.system_cpu_percent;
+        let sys_cpu = sensors.system_cpu_percent.map(|c| (c / 5.0).round() * 5.0);
+        let raw_cpu = sensors.system_cpu_percent;
         let on_battery = sensors.on_battery.unwrap_or(false);
 
         if !adaptive.enabled {
@@ -117,35 +121,38 @@ impl AdaptiveController {
             };
         }
 
-        if let Some(cpu) = sys_cpu {
-            if cpu >= adaptive.high_load_threshold_percent
-                || cpu >= adaptive.active_use_threshold_cpu_percent
-                || self.user_active
-            {
-                return AdaptiveStatus {
-                    mode: AdaptiveMode::ActiveReduce,
-                    effective_profile: "low".into(),
-                    message: "Aktive Nutzung / Last erkannt — Intensität reduziert.".into(),
-                    idle_seconds,
-                    system_cpu_percent: sys_cpu,
-                };
+        let busy = self.user_active
+            || raw_cpu
+                .map(|cpu| cpu >= adaptive.active_use_threshold_cpu_percent)
+                .unwrap_or(false);
+        if busy {
+            self.latched_reduce = true;
+        } else if let Some(cpu) = raw_cpu {
+            let release = (adaptive.active_use_threshold_cpu_percent - 12.0).max(5.0);
+            if cpu < release {
+                self.latched_reduce = false;
             }
-        } else if self.user_active {
+        } else {
+            self.latched_reduce = false;
+        }
+
+        if self.latched_reduce {
             return AdaptiveStatus {
                 mode: AdaptiveMode::ActiveReduce,
                 effective_profile: "low".into(),
-                message: "Aktive Nutzung erkannt — Intensität reduziert.".into(),
+                message: "Aktive Nutzung / Last erkannt — Intensität reduziert.".into(),
                 idle_seconds,
                 system_cpu_percent: sys_cpu,
             };
         }
 
+        let idle_bucket = (idle_seconds / 15) * 15;
         if idle_seconds < adaptive.idle_seconds_before_ramp {
             return AdaptiveStatus {
                 mode: AdaptiveMode::IdleRamp,
                 effective_profile: "low".into(),
-                message: format!("Leerlauf {idle_seconds}s — Ramp läuft an…"),
-                idle_seconds,
+                message: format!("Leerlauf {idle_bucket}s — Ramp läuft an…"),
+                idle_seconds: idle_bucket,
                 system_cpu_percent: sys_cpu,
             };
         }

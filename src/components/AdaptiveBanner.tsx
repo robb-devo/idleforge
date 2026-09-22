@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { memo } from "react";
 import type { AdaptiveStatus } from "../lib/types";
 
 interface Props {
@@ -18,18 +18,17 @@ const MODE_LABEL: Record<string, string> = {
   disabled: "Aus",
 };
 
-export function AdaptiveBanner({ status, enabled, onToggle, onBattery }: Props) {
+export const AdaptiveBanner = memo(function AdaptiveBanner({
+  status,
+  enabled,
+  onToggle,
+  onBattery,
+}: Props) {
   const powerLabel =
     onBattery == null ? "Netzteil n/v" : onBattery ? "Akku" : "Netzteil";
 
   return (
-    <motion.div
-      className="adaptive-banner"
-      layout
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-    >
+    <div className="adaptive-banner">
       <div>
         <strong>Adaptiv · {MODE_LABEL[status.mode] ?? status.mode}</strong>
         <span>{status.message}</span>
@@ -54,6 +53,6 @@ export function AdaptiveBanner({ status, enabled, onToggle, onBattery }: Props) 
         </span>
         {enabled ? "Aktiv" : "Aus"}
       </button>
-    </motion.div>
+    </div>
   );
-}
+});

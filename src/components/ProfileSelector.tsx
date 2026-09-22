@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { ProfileId, ProfileDef } from "../lib/types";
 
 interface Props {
@@ -8,7 +9,7 @@ interface Props {
 
 const ORDER: ProfileId[] = ["idle", "low", "medium", "high", "extreme"];
 
-export function ProfileSelector({ profiles, active, onChange }: Props) {
+export const ProfileSelector = memo(function ProfileSelector({ profiles, active, onChange }: Props) {
   return (
     <div className="profile-row">
       {ORDER.map((id) => {
@@ -29,4 +30,4 @@ export function ProfileSelector({ profiles, active, onChange }: Props) {
       })}
     </div>
   );
-}
+});

@@ -43,6 +43,8 @@ pub struct SensorHub {
     nvidia: (Option<f64>, Option<f64>),
     nvidia_at: Option<Instant>,
     nvidia_missing: bool,
+    cpu_sample: Option<f64>,
+    cpu_sample_at: Option<Instant>,
 }
 
 impl SensorHub {
@@ -58,6 +60,8 @@ impl SensorHub {
             nvidia: (None, None),
             nvidia_at: None,
             nvidia_missing: false,
+            cpu_sample: None,
+            cpu_sample_at: None,
         }
     }
 
@@ -102,8 +106,7 @@ impl SensorHub {
     }
 
     pub fn read(&mut self) -> SensorReading {
-        self.sys.refresh_cpu_all();
-        let cpu = Some(self.sys.global_cpu_usage() as f64);
+        let cpu = self.cpu_cached();
         let (gpu_temp, gpu_power) = self.nvidia_cached();
 
         SensorReading {
@@ -124,6 +127,20 @@ impl SensorHub {
         self.gpu_name.clone().unwrap_or_else(|| {
             "GPU (nicht erkannt — Treiber/Tools fehlen, graceful degradation)".into()
         })
+    }
+
+    fn cpu_cached(&mut self) -> Option<f64> {
+        let fresh = self
+            .cpu_sample_at
+            .map(|t| t.elapsed() < Duration::from_secs(2))
+            .unwrap_or(false);
+        if !fresh {
+            self.sys.refresh_cpu_all();
+            let usage = self.sys.global_cpu_usage() as f64;
+            self.cpu_sample = if usage.is_finite() { Some(usage) } else { None };
+            self.cpu_sample_at = Some(Instant::now());
+        }
+        self.cpu_sample
     }
 
     fn battery_cached(&mut self) -> Option<bool> {

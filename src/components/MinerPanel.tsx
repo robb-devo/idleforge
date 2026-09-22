@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 import type { ChannelStats } from "../lib/types";
 import {
@@ -19,7 +20,7 @@ interface Props {
   busy?: boolean;
 }
 
-export function MinerPanel({
+export const MinerPanel = memo(function MinerPanel({
   stats,
   title,
   subtitle,
@@ -153,4 +154,4 @@ export function MinerPanel({
       </div>
     </motion.section>
   );
-}
+});

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import type { DashboardSnapshot } from "./lib/types";
 import {
   addWallet,
   getConfig,
   getSnapshot,
-  reportUserActivity,
   runningInTauri,
   saveConfig,
   setAdaptiveEnabled,
@@ -14,7 +14,7 @@ import {
   stopMiner,
   switchWallet,
 } from "./lib/api";
-import type { AppConfig, DashboardSnapshot, MinerKind, ProfileId, Wallet } from "./lib/types";
+import type { AppConfig, MinerKind, ProfileId, Wallet } from "./lib/types";
 import { AdaptiveBanner } from "./components/AdaptiveBanner";
 import { MetricsStrip } from "./components/MetricsStrip";
 import { MinerPanel } from "./components/MinerPanel";
@@ -24,6 +24,40 @@ import { WalletManager } from "./components/WalletManager";
 
 type View = "dashboard" | "wallets" | "settings";
 
+const POLL_VISIBLE_MS = 2500;
+const POLL_HIDDEN_MS = 8000;
+
+function bucket(n: number | null | undefined, step: number): number {
+  if (n == null || !Number.isFinite(n)) return -1;
+  return Math.round(n / step) * step;
+}
+
+/** Skip a React update when the visible dashboard has not meaningfully changed. */
+function displaySig(s: DashboardSnapshot): string {
+  return [
+    s.cpu.state,
+    bucket(s.cpu.hashrate_hs, 50),
+    bucket(s.cpu.temperature_c, 1),
+    bucket(s.cpu.power_w, 1),
+    bucket(s.cpu.utilization_percent, 5),
+    bucket(s.cpu.uptime_seconds, 5),
+    bucket(s.cpu.intensity, 0.05),
+    s.gpu.state,
+    bucket(s.gpu.hashrate_hs, 1e5),
+    bucket(s.gpu.temperature_c, 1),
+    bucket(s.gpu.power_w, 1),
+    bucket(s.gpu.utilization_percent, 5),
+    bucket(s.gpu.uptime_seconds, 5),
+    bucket(s.gpu.intensity, 0.05),
+    s.adaptive.mode,
+    s.adaptive.effective_profile,
+    bucket(s.adaptive.idle_seconds, 15),
+    bucket(s.adaptive.system_cpu_percent, 5),
+    s.profile,
+    s.mock_mode,
+  ].join("|");
+}
+
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
@@ -32,50 +66,85 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const tauri = runningInTauri();
 
-  const refresh = useCallback(async () => {
+  const refreshSnapshot = useCallback(async () => {
     try {
-      const [snap, cfg] = await Promise.all([getSnapshot(), getConfig()]);
-      setSnapshot(snap);
-      setConfig(cfg);
+      const snap = await getSnapshot();
+      setSnapshot((prev) => {
+        if (prev && displaySig(prev) === displaySig(snap)) return prev;
+        return snap;
+      });
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   }, []);
 
-  useEffect(() => {
-    void refresh();
-    const id = window.setInterval(() => void refresh(), 1000);
-    return () => window.clearInterval(id);
-  }, [refresh]);
-
-  useEffect(() => {
-    let idleTimer: number | undefined;
-    const markActive = () => {
-      void reportUserActivity(true);
-      window.clearTimeout(idleTimer);
-      idleTimer = window.setTimeout(() => void reportUserActivity(false), 4000);
-    };
-    const events: Array<keyof WindowEventMap> = ["mousemove", "keydown", "pointerdown"];
-    events.forEach((ev) => window.addEventListener(ev, markActive));
-    idleTimer = window.setTimeout(() => void reportUserActivity(false), 2000);
-    return () => {
-      events.forEach((ev) => window.removeEventListener(ev, markActive));
-      window.clearTimeout(idleTimer);
-    };
-  }, []);
-
-  const withBusy = async (fn: () => Promise<void>) => {
-    setBusy(true);
+  const refreshConfig = useCallback(async () => {
     try {
-      await fn();
-      await refresh();
+      setConfig(await getConfig());
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void refreshSnapshot();
+    void refreshConfig();
+  }, [refreshSnapshot, refreshConfig]);
+
+  useEffect(() => {
+    let timer = 0;
+    let stopped = false;
+    const schedule = (delay: number) => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (stopped) return;
+        void refreshSnapshot();
+        schedule(document.hidden ? POLL_HIDDEN_MS : POLL_VISIBLE_MS);
+      }, delay);
+    };
+    schedule(POLL_VISIBLE_MS);
+    const onVis = () => {
+      if (!document.hidden) {
+        void refreshSnapshot();
+        schedule(POLL_VISIBLE_MS);
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [refreshSnapshot]);
+
+  const withBusy = useCallback(
+    async (fn: () => Promise<void>) => {
+      setBusy(true);
+      try {
+        await fn();
+        await Promise.all([refreshSnapshot(), refreshConfig()]);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refreshSnapshot, refreshConfig],
+  );
+
+  const startCpu = useCallback(() => withBusy(() => startMiner("cpu")), [withBusy]);
+  const stopCpu = useCallback(() => withBusy(() => stopMiner("cpu")), [withBusy]);
+  const startGpu = useCallback(() => withBusy(() => startMiner("gpu")), [withBusy]);
+  const stopGpu = useCallback(() => withBusy(() => stopMiner("gpu")), [withBusy]);
+  const toggleAdaptive = useCallback(
+    (enabled: boolean) => withBusy(() => setAdaptiveEnabled(enabled)),
+    [withBusy],
+  );
+  const changeProfile = useCallback(
+    (id: ProfileId) => withBusy(() => setProfile(id)),
+    [withBusy],
+  );
 
   if (!snapshot || !config) {
     return (
@@ -196,7 +265,7 @@ export default function App() {
               status={snapshot.adaptive}
               enabled={config.adaptive.enabled}
               onBattery={snapshot.hardware.on_battery}
-              onToggle={(enabled) => void withBusy(() => setAdaptiveEnabled(enabled))}
+              onToggle={toggleAdaptive}
             />
 
             <MetricsStrip snapshot={snapshot} />
@@ -208,8 +277,8 @@ export default function App() {
                 subtitle={`${snapshot.hardware.cpu_name} · RandomX`}
                 accent="cpu"
                 busy={busy}
-                onStart={() => void withBusy(() => startMiner("cpu"))}
-                onStop={() => void withBusy(() => stopMiner("cpu"))}
+                onStart={startCpu}
+                onStop={stopCpu}
               />
               <MinerPanel
                 stats={snapshot.gpu}
@@ -217,8 +286,8 @@ export default function App() {
                 subtitle={`${snapshot.hardware.gpu_name} · KawPow-fähig`}
                 accent="gpu"
                 busy={busy}
-                onStart={() => void withBusy(() => startMiner("gpu"))}
-                onStop={() => void withBusy(() => stopMiner("gpu"))}
+                onStart={startGpu}
+                onStop={stopGpu}
               />
             </div>
 
@@ -232,7 +301,7 @@ export default function App() {
               <ProfileSelector
                 profiles={config.profiles}
                 active={config.active_profile}
-                onChange={(id: ProfileId) => void withBusy(() => setProfile(id))}
+                onChange={changeProfile}
               />
             </section>
           </>

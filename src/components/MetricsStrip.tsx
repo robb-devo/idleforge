@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { memo } from "react";
 import type { DashboardSnapshot, EarningsEstimate } from "../lib/types";
 import {
   formatHashrate,
@@ -31,7 +31,7 @@ function earningsLabel(e: EarningsEstimate): string {
   return "—";
 }
 
-export function MetricsStrip({ snapshot }: Props) {
+export const MetricsStrip = memo(function MetricsStrip({ snapshot }: Props) {
   const totalUptime = Math.max(snapshot.cpu.uptime_seconds, snapshot.gpu.uptime_seconds);
   const power =
     (snapshot.cpu.power_w ?? 0) + (snapshot.gpu.power_w ?? 0) || null;
@@ -91,28 +91,15 @@ export function MetricsStrip({ snapshot }: Props) {
 
   return (
     <div className="metrics-row">
-      {cards.map((c, i) => (
-        <motion.div
-          className="metric"
-          key={c.label}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.04 * i, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        >
+      {cards.map((c) => (
+        <div className="metric" key={c.label}>
           <div className="metric-label">{c.label}</div>
-          <motion.div
-            className="metric-value"
-            key={c.value}
-            initial={{ opacity: 0.4, filter: "blur(2px)" }}
-            animate={{ opacity: 1, filter: "blur(0px)" }}
-            transition={{ duration: 0.25 }}
-            style={c.compact ? { fontSize: "1.0rem" } : undefined}
-          >
+          <div className="metric-value" style={c.compact ? { fontSize: "1.0rem" } : undefined}>
             {c.value}
-          </motion.div>
+          </div>
           <div className="metric-hint">{c.hint}</div>
-        </motion.div>
+        </div>
       ))}
     </div>
   );
-}
+});
