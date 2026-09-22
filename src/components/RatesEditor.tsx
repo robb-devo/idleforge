@@ -44,7 +44,7 @@ export function RatesEditor({ config, onSave }: Props) {
         />
       </div>
       <div className="field">
-        <label>RVN / {config.currency}</label>
+        <label>RVN / {config.currency} (optional)</label>
         <input
           value={rvn}
           onChange={(e) => setRvn(e.target.value)}

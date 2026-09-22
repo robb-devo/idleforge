@@ -70,16 +70,16 @@
       "pool_worker": "idleforge-worker-1"
     },
     {
-      "id": "rvn-main",
-      "label": "RVN Hauptwallet",
-      "coin": "RVN",
-      "receive_address": "YOUR_RVN_RECEIVE_ADDRESS_HERE",
+      "id": "xmr-gpu",
+      "label": "XMR GPU (dieselbe Empfangsadresse)",
+      "coin": "XMR",
+      "receive_address": "YOUR_XMR_RECEIVE_ADDRESS_HERE",
       "pool_worker": "idleforge-gpu-1"
     }
   ],
   "active_wallet_ids": {
     "cpu": "xmr-main",
-    "gpu": "rvn-main"
+    "gpu": "xmr-main"
   },
   "cpu": {
     "enabled": true,
@@ -99,16 +99,16 @@
   "gpu": {
     "enabled": true,
     "adapter": "lolminer",
-    "coin": "RVN",
-    "algorithm": "kawpow",
-    "algorithm_note": "GPU channel is fully wired (UI + MinerAdapter). KawPow/lolMiner is the default scaffold — swap adapters later without rewriting the dashboard.",
+    "coin": "XMR",
+    "algorithm": "ETCHASH",
+    "algorithm_note": "lolMiner 1.98 dropped KAWPOW. Default is ETCHASH on MoneroOcean so the GPU pays out in XMR to the same receive address. Swap algorithm/pool/extra_args for another coin without changing the adapter trait.",
     "binary_path": "C:\\\\Miners\\\\lolMiner\\\\lolMiner.exe",
     "api_port": 18089,
     "pool": {
-      "url": "stratum+ssl://rvn.2miners.com:6060",
+      "url": "gulf.moneroocean.stream:20128",
       "tls": true,
-      "user_template": "{address}.{worker}",
-      "pass": "x"
+      "user_template": "{address}",
+      "pass": "worker~etchash"
     },
     "extra_args": []
   },

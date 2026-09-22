@@ -282,8 +282,8 @@ export default function App() {
               />
               <MinerPanel
                 stats={snapshot.gpu}
-                title="GPU-Adapter · Scaffold"
-                subtitle={`${snapshot.hardware.gpu_name} · KawPow-fähig`}
+                title="lolMiner · Etchash"
+                subtitle={`${snapshot.hardware.gpu_name} · MoneroOcean · XMR`}
                 accent="gpu"
                 busy={busy}
                 onStart={startGpu}

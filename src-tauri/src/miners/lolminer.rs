@@ -5,7 +5,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// lolMiner adapter for KawPow (Ravencoin) on modern NVIDIA GPUs.
+/// lolMiner adapter. Default coin path is ETCHASH on MoneroOcean (XMR payout).
+/// Other algorithms stay configurable via `algorithm`, pool URL, and `extra_args`.
 pub struct LolMinerAdapter {
     child: Option<Child>,
     api_port: u16,
@@ -117,11 +118,12 @@ impl MinerAdapter for LolMinerAdapter {
             ));
         }
 
-        let algo = if req.algorithm.is_empty() {
-            "KAWPOW"
+        let algo_owned = if req.algorithm.trim().is_empty() {
+            "ETCHASH".to_string()
         } else {
-            &req.algorithm
+            req.algorithm.trim().to_string()
         };
+        let algo = algo_owned.as_str();
 
         let mut cmd = crate::process_util::new_hidden(&req.binary_path);
         cmd.arg("--algo")
@@ -137,9 +139,17 @@ impl MinerAdapter for LolMinerAdapter {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        // MoneroOcean and other TLS pools: `gulf.moneroocean.stream:20128 --tls on`
+        // MoneroOcean: `gulf.moneroocean.stream:20128 --tls on --ethstratum ETHV1`
         if crate::miners::adapter::pool_wants_tls(req.tls, &req.pool_url) {
             cmd.arg("--tls").arg("on");
+        }
+        if ethash_family(algo)
+            && !req
+                .extra_args
+                .iter()
+                .any(|arg| arg.eq_ignore_ascii_case("--ethstratum"))
+        {
+            cmd.arg("--ethstratum").arg("ETHV1");
         }
 
         // Power target is clamped to <= 95% before spawn (safety cap).
@@ -217,4 +227,9 @@ impl MinerAdapter for LolMinerAdapter {
     fn last_error(&self) -> Option<String> {
         self.last_error.clone()
     }
+}
+
+fn ethash_family(algo: &str) -> bool {
+    let algo = algo.to_ascii_lowercase();
+    algo.contains("etchash") || algo.contains("ethash")
 }

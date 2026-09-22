@@ -50,11 +50,21 @@ CPU und GPU lassen sich **unabhängig** starten/stoppen. Ist `pool.tls` gesetzt,
 | Kanal | Coin | Algorithmus | Adapter | Binary (Beispiel) |
 |-------|------|-------------|---------|-------------------|
 | CPU | Monero (XMR) | RandomX | `xmrig` | `C:\Miners\xmrig\xmrig.exe` |
-| GPU | Ravencoin (RVN) | **KawPow** | `lolminer` | `C:\Miners\lolMiner\lolMiner.exe` |
+| GPU | Monero (XMR) | **ETCHASH** | `lolminer` | `C:\Miners\lolMiner\lolMiner.exe` |
 
-### Warum KawPow?
+### GPU-Default: ETCHASH über MoneroOcean
 
-Für moderne NVIDIA-GPUs ist **KawPow (Ravencoin)** ein sinnvolles, weiterhin aktives Ziel mit stabiler lolMiner-Unterstützung. Ethash/ETC ist möglich, aber KawPow ist als Default klar und erweiterbar. Weitere Algos kommen über das `MinerAdapter`-Plugin-Interface.
+lolMiner **1.98** unterstützt `--algo KAWPOW` nicht mehr. Der GPU-Kanal mined deshalb **ETCHASH** auf `gulf.moneroocean.stream:20128`. MoneroOcean zahlt in **XMR** auf dieselbe Empfangsadresse wie der CPU-Miner.
+
+| Einstellung | Wert |
+|-------------|------|
+| Algorithmus | `ETCHASH` |
+| Pool | `gulf.moneroocean.stream:20128` |
+| User | XMR-Empfangsadresse |
+| Pass | `worker~etchash` |
+| Argumente | `--tls on --ethstratum ETHV1` |
+
+Anderes Coin/Algo: `gpu.algorithm`, Pool-URL, `pass` und `extra_args` ändern. Der Adapter bleibt derselbe. `--ethstratum ETHV1` wird nur für Etchash/Ethash ergänzt, `--tls on` nur wenn TLS nötig ist.
 
 ---
 

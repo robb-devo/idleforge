@@ -259,16 +259,10 @@ export class MockEngine {
   private earnings(cpu: ChannelStats, gpu: ChannelStats): EarningsEstimate[] {
     const rates = this.config.rates;
     const xmrPlaceholder = rates.xmr_eur == null;
-    const rvnPlaceholder = rates.rvn_eur == null;
 
-    // Rough demo-only heuristic when rates are set; otherwise clear placeholders.
     const xmrPerDay =
       cpu.state === "running" || cpu.state === "throttled"
         ? (cpu.hashrate_hs / 1000) * 0.00012
-        : null;
-    const rvnPerDay =
-      gpu.state === "running" || gpu.state === "throttled"
-        ? (gpu.hashrate_hs / 1e6) * 0.85
         : null;
 
     return [
@@ -286,17 +280,12 @@ export class MockEngine {
           : "Schätzung aus Hashrate × manuellem Kurs (nicht live).",
       },
       {
-        coin: "RVN",
-        amount_per_day: rvnPlaceholder ? null : rvnPerDay,
-        fiat_per_day:
-          rvnPlaceholder || rvnPerDay == null || rates.rvn_eur == null
-            ? null
-            : rvnPerDay * rates.rvn_eur,
+        coin: "XMR (GPU)",
+        amount_per_day: null,
+        fiat_per_day: null,
         fiat_currency: this.config.currency,
-        placeholder: rvnPlaceholder,
-        note: rvnPlaceholder
-          ? "Kein RVN-Kurs konfiguriert — kein erfundener Preis."
-          : "Schätzung aus Hashrate × manuellem Kurs (nicht live).",
+        placeholder: true,
+        note: `GPU ${gpu.algorithm} über MoneroOcean zahlt in XMR auf dieselbe Adresse. Kein erfundener Etchash-Kurs.`,
       },
     ];
   }

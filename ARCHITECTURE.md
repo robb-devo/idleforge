@@ -78,7 +78,7 @@ sensors/        sysinfo + nvidia-smi / WMI GPU + battery
 miners/
   adapter.rs    MinerAdapter trait (extensibility seam)
   xmrig.rs      Phase 1 — CPU XMR RandomX (external process)
-  lolminer.rs   GPU scaffold — real adapter hooks, swappable later
+  lolminer.rs   GPU — default ETCHASH via MoneroOcean (XMR payout); algo/pool swappable
 ```
 
 ### MinerAdapter

@@ -453,17 +453,10 @@ impl AppStateInner {
     fn earnings(&self, cpu: &ChannelStats, gpu: &ChannelStats) -> Vec<EarningsEstimate> {
         let rates = &self.config.rates;
         let xmr_ph = rates.xmr_eur.is_none();
-        let rvn_ph = rates.rvn_eur.is_none();
 
         let xmr_amount =
             if matches!(cpu.state, MinerRunState::Running | MinerRunState::Throttled) {
                 Some((cpu.hashrate_hs / 1000.0) * 0.00012)
-            } else {
-                None
-            };
-        let rvn_amount =
-            if matches!(gpu.state, MinerRunState::Running | MinerRunState::Throttled) {
-                Some((gpu.hashrate_hs / 1e6) * 0.85)
             } else {
                 None
             };
@@ -486,20 +479,15 @@ impl AppStateInner {
                 },
             },
             EarningsEstimate {
-                coin: "RVN".into(),
-                amount_per_day: if rvn_ph { None } else { rvn_amount },
-                fiat_per_day: if rvn_ph {
-                    None
-                } else {
-                    rvn_amount.and_then(|a| rates.rvn_eur.map(|r| a * r))
-                },
+                coin: "XMR (GPU)".into(),
+                amount_per_day: None,
+                fiat_per_day: None,
                 fiat_currency: self.config.currency.clone(),
-                placeholder: rvn_ph,
-                note: if rvn_ph {
-                    "Kein RVN-Kurs konfiguriert — kein erfundener Preis.".into()
-                } else {
-                    "Schätzung aus Hashrate × manuellem Kurs.".into()
-                },
+                placeholder: true,
+                note: format!(
+                    "GPU {} über MoneroOcean zahlt in XMR auf dieselbe Adresse. Kein erfundener Etchash-Kurs.",
+                    gpu.algorithm
+                ),
             },
         ]
     }
