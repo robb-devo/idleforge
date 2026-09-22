@@ -33,8 +33,9 @@ config/local.config.json
 .env
 .env.*
 
-# Miner binaries (never commit)
-**/*.exe
-**/xmrig*
-**/lolMiner*
-**/lolminer*
+# Miner binaries (never commit) — keep Rust adapter sources
+**/xmrig.exe
+**/lolMiner.exe
+**/lolminer.exe
+binaries/
+miners-bin/
