@@ -54,6 +54,8 @@
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
+  position: relative;
+  z-index: 2;
   transition: background 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
@@ -155,6 +157,8 @@
   border: 1px solid var(--border-strong);
   background: rgba(255, 255, 255, 0.03);
   color: var(--text);
+  position: relative;
+  z-index: 2;
   transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, opacity 160ms ease;
 }
 
@@ -209,7 +213,7 @@
 
 .metrics-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -378,6 +382,8 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
 }
 
 .section {
@@ -411,7 +417,7 @@
 
 .profile-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
 }
 
@@ -642,5 +648,11 @@
   .wallet-row,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1400px) and (min-width: 1101px) {
+  .metrics-row {
+    grid-template-columns: repeat(3, 1fr);
   }
 }

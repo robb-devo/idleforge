@@ -60,7 +60,8 @@ Für moderne NVIDIA-GPUs ist **KawPow (Ravencoin)** ein sinnvolles, weiterhin ak
 
 | ID | DE | Bedeutung |
 |----|----|-----------|
-| `low` | Niedrig | Schonend, niedrige Intensität |
+| `idle` | Idle | Minimal — Hintergrund schonen |
+| `low` | Niedrig | Schonend |
 | `medium` | Mittel | Alltag (Default) |
 | `high` | Hoch | Aggressiver |
 | `extreme` | Extrem | Maximum laut Config |
@@ -93,10 +94,14 @@ In der Config / UI:
 
 ---
 
-## Kurse / Ertrag
+## Kurse / Ertrag / Stromkosten
 
-`rates.xmr_eur` / `rates.rvn_eur` sind optional.  
+`rates.xmr_eur`, `rates.rvn_eur`, `rates.electricity_eur_per_kwh` sind optional.  
 `null` → klare Platzhalter in der UI. IdleForge **erfindet keine Live-Preise**.
+
+Bei gesetztem Strompreis: geschätzte €/Tag aus gemessener/geschätzter Leistung.
+
+Siehe auch [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ---
 

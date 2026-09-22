@@ -40,6 +40,14 @@ pub struct EarningsEstimate {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct PowerCostEstimate {
+    pub watts: Option<f64>,
+    pub eur_per_day: Option<f64>,
+    pub placeholder: bool,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct DashboardSnapshot {
     pub mock_mode: bool,
     pub hardware: HardwareInfo,
@@ -47,6 +55,7 @@ pub struct DashboardSnapshot {
     pub gpu: ChannelStats,
     pub adaptive: AdaptiveStatus,
     pub earnings: Vec<EarningsEstimate>,
+    pub power_cost: PowerCostEstimate,
     pub profile: ProfileId,
     pub updated_at: String,
 }
@@ -462,6 +471,27 @@ impl AppStateInner {
         ]
     }
 
+    fn power_cost(&self, cpu: &ChannelStats, gpu: &ChannelStats) -> PowerCostEstimate {
+        let watts_sum = cpu.power_w.unwrap_or(0.0) + gpu.power_w.unwrap_or(0.0);
+        let watts = if watts_sum > 0.0 { Some(watts_sum) } else { None };
+        let rate = self.config.rates.electricity_eur_per_kwh;
+        let placeholder = rate.is_none();
+        PowerCostEstimate {
+            watts,
+            eur_per_day: if placeholder {
+                None
+            } else {
+                watts.and_then(|w| rate.map(|r| (w / 1000.0) * 24.0 * r))
+            },
+            placeholder,
+            note: if placeholder {
+                "Kein Strompreis (€/kWh) konfiguriert — kein erfundener Preis.".into()
+            } else {
+                "Schätzung: Leistung × €/kWh × 24h.".into()
+            },
+        }
+    }
+
     pub fn snapshot(&mut self) -> DashboardSnapshot {
         let adaptive = self.current_adaptive();
         self.refresh_channel(MinerKind::Cpu, &adaptive);
@@ -470,6 +500,7 @@ impl AppStateInner {
         let cpu = self.channel_stats(MinerKind::Cpu);
         let gpu = self.channel_stats(MinerKind::Gpu);
         let earnings = self.earnings(&cpu, &gpu);
+        let power_cost = self.power_cost(&cpu, &gpu);
         DashboardSnapshot {
             mock_mode: self.config.mock_mode,
             hardware,
@@ -477,6 +508,7 @@ impl AppStateInner {
             gpu,
             adaptive,
             earnings,
+            power_cost,
             profile: self.config.active_profile.clone(),
             updated_at: chrono::Utc::now().to_rfc3339(),
         }

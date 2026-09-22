@@ -6,7 +6,7 @@ interface Props {
   onChange: (id: ProfileId) => void;
 }
 
-const ORDER: ProfileId[] = ["low", "medium", "high", "extreme"];
+const ORDER: ProfileId[] = ["idle", "low", "medium", "high", "extreme"];
 
 export function ProfileSelector({ profiles, active, onChange }: Props) {
   return (

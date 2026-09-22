@@ -6,6 +6,7 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ProfileId {
+    Idle,
     Low,
     Medium,
     High,
@@ -15,6 +16,7 @@ pub enum ProfileId {
 impl ProfileId {
     pub fn as_str(&self) -> &'static str {
         match self {
+            ProfileId::Idle => "idle",
             ProfileId::Low => "low",
             ProfileId::Medium => "medium",
             ProfileId::High => "high",
@@ -83,6 +85,8 @@ pub struct AdaptiveConfig {
 pub struct RatesConfig {
     pub xmr_eur: Option<f64>,
     pub rvn_eur: Option<f64>,
+    #[serde(default)]
+    pub electricity_eur_per_kwh: Option<f64>,
     #[serde(default)]
     pub note: Option<String>,
 }

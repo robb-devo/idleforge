@@ -7,7 +7,9 @@ import {
   runningInTauri,
   setAdaptiveEnabled,
   setProfile,
+  startAllMiners,
   startMiner,
+  stopAllMiners,
   stopMiner,
   switchWallet,
 } from "./lib/api";
@@ -97,6 +99,7 @@ export default function App() {
             className={`nav-item ${view === "dashboard" ? "active" : ""}`}
             onClick={() => setView("dashboard")}
             type="button"
+            data-testid="nav-dashboard"
           >
             Übersicht
           </button>
@@ -104,6 +107,7 @@ export default function App() {
             className={`nav-item ${view === "wallets" ? "active" : ""}`}
             onClick={() => setView("wallets")}
             type="button"
+            data-testid="nav-wallets"
           >
             Wallets
           </button>
@@ -111,6 +115,7 @@ export default function App() {
             className={`nav-item ${view === "settings" ? "active" : ""}`}
             onClick={() => setView("settings")}
             type="button"
+            data-testid="nav-settings"
           >
             Einstellungen
           </button>
@@ -137,19 +142,35 @@ export default function App() {
             </h1>
             <p>
               {view === "dashboard" &&
-                "Ruhige Steuerung für externe CPU- und GPU-Miner — unabhängig, adaptiv, ohne Algorithmen im Repo."}
+                "Ruhige Steuerung für externe Miner — CPU Phase‑1 (XMRig), GPU-Adapter bereit, adaptiv und ohne Algorithmen im Repo."}
               {view === "wallets" &&
                 "Empfangsadressen und Pool-Worker verwalten. Niemals Seed-Phrasen oder private Schlüssel."}
               {view === "settings" &&
-                "Profile, Pfade und adaptive Regeln. Beispielkonfiguration unter config/example.config.json."}
+                "Profile, Pfade, Strompreis und adaptive Regeln. Siehe ARCHITECTURE.md und config/example.config.json."}
             </p>
           </div>
-          <div className="topbar-actions">
-            <div className="badge">
-              <span className="badge-dot" />
-              {snapshot.hardware.cpu_name.split("(")[0].trim()}
+          {view === "dashboard" && (
+            <div className="topbar-actions">
+              <button
+                className="btn btn-primary"
+                type="button"
+                data-testid="start-all"
+                disabled={busy}
+                onClick={() => void withBusy(() => startAllMiners())}
+              >
+                Alles starten
+              </button>
+              <button
+                className="btn btn-danger"
+                type="button"
+                data-testid="stop-all"
+                disabled={busy}
+                onClick={() => void withBusy(() => stopAllMiners())}
+              >
+                Alles stoppen
+              </button>
             </div>
-          </div>
+          )}
         </header>
 
         {error && (
@@ -189,8 +210,8 @@ export default function App() {
               />
               <MinerPanel
                 stats={snapshot.gpu}
-                title="lolMiner · Ravencoin"
-                subtitle={`${snapshot.hardware.gpu_name} · KawPow`}
+                title="GPU-Adapter · Scaffold"
+                subtitle={`${snapshot.hardware.gpu_name} · KawPow-fähig`}
                 accent="gpu"
                 busy={busy}
                 onStart={() => void withBusy(() => startMiner("gpu"))}
@@ -202,7 +223,7 @@ export default function App() {
               <div className="section-header">
                 <div>
                   <h2>Leistungsprofile</h2>
-                  <p>Niedrig bis Extrem — Adaptive Regeln können unter das Zielprofil drosseln.</p>
+                  <p>Idle bis Extrem — Adaptive Regeln können unter das Zielprofil drosseln.</p>
                 </div>
               </div>
               <ProfileSelector
@@ -255,8 +276,14 @@ export default function App() {
                   </div>
                 </div>
                 <div className="stat">
-                  <div className="stat-label">Kerne</div>
-                  <div className="stat-value">{snapshot.hardware.cpu_cores || "n/v"}</div>
+                  <div className="stat-label">Netzteil / Akku</div>
+                  <div className="stat-value">
+                    {snapshot.hardware.on_battery == null
+                      ? "n/v"
+                      : snapshot.hardware.on_battery
+                        ? "Akku"
+                        : "Netzteil"}
+                  </div>
                 </div>
                 <div className="stat">
                   <div className="stat-label">Sensoren</div>
@@ -282,21 +309,44 @@ export default function App() {
                   </div>
                 </div>
                 <div className="stat">
-                  <div className="stat-label">GPU (lolMiner)</div>
+                  <div className="stat-label">GPU (Adapter)</div>
                   <div className="stat-value" style={{ fontSize: "0.82rem", wordBreak: "break-all" }}>
                     {config.gpu.binary_path}
                   </div>
                 </div>
+              </div>
+            </section>
+
+            <section className="section">
+              <div className="section-header">
+                <div>
+                  <h2>Kurse & Strompreis</h2>
+                  <p>{config.rates.note}</p>
+                </div>
+              </div>
+              <div className="stat-grid">
                 <div className="stat">
-                  <div className="stat-label">CPU-Pool</div>
-                  <div className="stat-value" style={{ fontSize: "0.82rem" }}>
-                    {config.cpu.pool.url}
+                  <div className="stat-label">XMR/{config.currency}</div>
+                  <div className="stat-value">{config.rates.xmr_eur ?? "Platzhalter"}</div>
+                </div>
+                <div className="stat">
+                  <div className="stat-label">RVN/{config.currency}</div>
+                  <div className="stat-value">{config.rates.rvn_eur ?? "Platzhalter"}</div>
+                </div>
+                <div className="stat">
+                  <div className="stat-label">Strom €/kWh</div>
+                  <div className="stat-value">
+                    {config.rates.electricity_eur_per_kwh ?? "Platzhalter"}
                   </div>
                 </div>
                 <div className="stat">
-                  <div className="stat-label">GPU-Pool</div>
-                  <div className="stat-value" style={{ fontSize: "0.82rem" }}>
-                    {config.gpu.pool.url}
+                  <div className="stat-label">Kosten (geschätzt)</div>
+                  <div className="stat-value" style={{ fontSize: "0.9rem" }}>
+                    {snapshot.power_cost.placeholder
+                      ? "Strompreis n/v"
+                      : snapshot.power_cost.eur_per_day != null
+                        ? `≈ ${snapshot.power_cost.eur_per_day.toFixed(2)} €/Tag`
+                        : "—"}
                   </div>
                 </div>
               </div>
@@ -306,7 +356,7 @@ export default function App() {
               <div className="section-header">
                 <div>
                   <h2>Adaptive Regeln</h2>
-                  <p>Scaffold — teilweise aktiv in Mock und Backend.</p>
+                  <p>Temp-, Last- und Netzteil-Schutz — siehe ARCHITECTURE.md.</p>
                 </div>
               </div>
               <div className="stat-grid">
@@ -333,25 +383,6 @@ export default function App() {
                 <div className="stat">
                   <div className="stat-label">Drossel-Faktor</div>
                   <div className="stat-value">{config.adaptive.reduce_factor_on_active}</div>
-                </div>
-              </div>
-            </section>
-
-            <section className="section">
-              <div className="section-header">
-                <div>
-                  <h2>Kurse / Ertrag</h2>
-                  <p>{config.rates.note}</p>
-                </div>
-              </div>
-              <div className="stat-grid">
-                <div className="stat">
-                  <div className="stat-label">XMR/{config.currency}</div>
-                  <div className="stat-value">{config.rates.xmr_eur ?? "Platzhalter"}</div>
-                </div>
-                <div className="stat">
-                  <div className="stat-label">RVN/{config.currency}</div>
-                  <div className="stat-value">{config.rates.rvn_eur ?? "Platzhalter"}</div>
                 </div>
               </div>
             </section>

@@ -298,6 +298,24 @@ export class MockEngine {
     ];
   }
 
+  private powerCost(cpu: ChannelStats, gpu: ChannelStats) {
+    const watts =
+      (cpu.power_w ?? 0) + (gpu.power_w ?? 0) > 0
+        ? (cpu.power_w ?? 0) + (gpu.power_w ?? 0)
+        : null;
+    const rate = this.config.rates.electricity_eur_per_kwh;
+    const placeholder = rate == null;
+    return {
+      watts,
+      eur_per_day:
+        placeholder || watts == null ? null : (watts / 1000) * 24 * rate,
+      placeholder,
+      note: placeholder
+        ? "Kein Strompreis (€/kWh) konfiguriert — kein erfundener Preis."
+        : "Schätzung: Leistung × €/kWh × 24h (manueller Tarif).",
+    };
+  }
+
   snapshot(): DashboardSnapshot {
     this.tick += 1;
     if (!this.userActive) this.idleSeconds += 1;
@@ -314,6 +332,7 @@ export class MockEngine {
       gpu,
       adaptive,
       earnings: this.earnings(cpu, gpu),
+      power_cost: this.powerCost(cpu, gpu),
       profile: this.config.active_profile,
       updated_at: nowIso(),
     };

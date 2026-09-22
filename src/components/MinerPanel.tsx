@@ -127,11 +127,23 @@ export function MinerPanel({
 
       <div className="panel-actions">
         {!running ? (
-          <button className="btn btn-primary" onClick={onStart} disabled={busy}>
+          <button
+            className="btn btn-primary"
+            onClick={onStart}
+            disabled={busy}
+            data-testid={`start-${accent}`}
+            type="button"
+          >
             Starten
           </button>
         ) : (
-          <button className="btn btn-danger" onClick={onStop} disabled={busy}>
+          <button
+            className="btn btn-danger"
+            onClick={onStop}
+            disabled={busy}
+            data-testid={`stop-${accent}`}
+            type="button"
+          >
             Stoppen
           </button>
         )}

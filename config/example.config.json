@@ -1,12 +1,13 @@
 {
-  "$schema_note": "Copy to %APPDATA%/IdleForge/config.json (Windows) or use Settings → Import. Never put seed phrases or private keys here.",
+  "$schema_note": "Copy to %APPDATA%/IdleForge/config.json (Windows) or use Settings. Never put seed phrases or private keys here.",
   "mock_mode": true,
   "active_profile": "medium",
   "currency": "EUR",
   "rates": {
     "xmr_eur": null,
     "rvn_eur": null,
-    "note": "Leave null to show placeholders. Optionally set manual rates or wire a rate provider later — IdleForge never invents live prices."
+    "electricity_eur_per_kwh": null,
+    "note": "Leave null to show placeholders. IdleForge never invents live prices. Set electricity_eur_per_kwh for power-cost estimates."
   },
   "power": {
     "assume_on_ac": true,
@@ -21,9 +22,16 @@
     "cpu_temp_limit_c": 85,
     "gpu_temp_limit_c": 78,
     "reduce_factor_on_active": 0.35,
-    "ramp_steps": ["pause", "low", "medium", "high", "extreme"]
+    "ramp_steps": ["pause", "idle", "low", "medium", "high", "extreme"]
   },
   "profiles": {
+    "idle": {
+      "label": "Idle",
+      "cpu_intensity": 0.12,
+      "gpu_intensity": 0.1,
+      "cpu_threads_ratio": 0.2,
+      "gpu_power_limit_percent": 40
+    },
     "low": {
       "label": "Niedrig",
       "cpu_intensity": 0.35,
@@ -93,7 +101,7 @@
     "adapter": "lolminer",
     "coin": "RVN",
     "algorithm": "kawpow",
-    "algorithm_note": "KawPow (Ravencoin) — sensible modern NVIDIA algo with broad lolMiner support. Alternatives (Ergo/Autolykos2, etc.) can be added as plugins.",
+    "algorithm_note": "GPU channel is fully wired (UI + MinerAdapter). KawPow/lolMiner is the default scaffold — swap adapters later without rewriting the dashboard.",
     "binary_path": "C:\\\\Miners\\\\lolMiner\\\\lolMiner.exe",
     "api_port": 18089,
     "pool": {
@@ -104,5 +112,5 @@
     },
     "extra_args": []
   },
-  "hardware_reference_note": "Reference hardware (e.g. ROG Strix G18 / Ryzen 9 / RTX 5070 Laptop) is example only. IdleForge detects whatever CPU/GPU is present."
+  "hardware_reference_note": "Reference hardware is example only. IdleForge detects whatever CPU/GPU is present."
 }

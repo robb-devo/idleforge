@@ -48,6 +48,16 @@ export async function stopMiner(kind: MinerKind): Promise<void> {
   await invoke("stop_miner", { kind });
 }
 
+export async function startAllMiners(): Promise<void> {
+  await startMiner("cpu");
+  await startMiner("gpu");
+}
+
+export async function stopAllMiners(): Promise<void> {
+  await stopMiner("cpu");
+  await stopMiner("gpu");
+}
+
 export async function setProfile(profile: ProfileId): Promise<void> {
   if (!isTauri()) {
     mockEngine.setProfile(profile);

@@ -1,4 +1,4 @@
-export type ProfileId = "low" | "medium" | "high" | "extreme";
+export type ProfileId = "idle" | "low" | "medium" | "high" | "extreme";
 
 export type MinerKind = "cpu" | "gpu";
 
@@ -74,6 +74,7 @@ export interface AppConfig {
   rates: {
     xmr_eur: number | null;
     rvn_eur: number | null;
+    electricity_eur_per_kwh: number | null;
     note?: string;
   };
   power: {
@@ -129,6 +130,13 @@ export interface EarningsEstimate {
   note: string;
 }
 
+export interface PowerCostEstimate {
+  watts: number | null;
+  eur_per_day: number | null;
+  placeholder: boolean;
+  note: string;
+}
+
 export interface AdaptiveStatus {
   mode: AdaptiveMode;
   effective_profile: ProfileId | "pause";
@@ -144,6 +152,7 @@ export interface DashboardSnapshot {
   gpu: ChannelStats;
   adaptive: AdaptiveStatus;
   earnings: EarningsEstimate[];
+  power_cost: PowerCostEstimate;
   profile: ProfileId;
   updated_at: string;
 }
@@ -155,7 +164,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   rates: {
     xmr_eur: null,
     rvn_eur: null,
-    note: "Keine Live-Kurse hinterlegt — Platzhalter werden angezeigt.",
+    electricity_eur_per_kwh: null,
+    note: "Keine Live-Kurse / kein Strompreis — Platzhalter. IdleForge erfindet keine Preise.",
   },
   power: {
     assume_on_ac: true,
@@ -170,9 +180,16 @@ export const DEFAULT_CONFIG: AppConfig = {
     cpu_temp_limit_c: 85,
     gpu_temp_limit_c: 78,
     reduce_factor_on_active: 0.35,
-    ramp_steps: ["pause", "low", "medium", "high", "extreme"],
+    ramp_steps: ["pause", "idle", "low", "medium", "high", "extreme"],
   },
   profiles: {
+    idle: {
+      label: "Idle",
+      cpu_intensity: 0.12,
+      gpu_intensity: 0.1,
+      cpu_threads_ratio: 0.2,
+      gpu_power_limit_percent: 40,
+    },
     low: {
       label: "Niedrig",
       cpu_intensity: 0.35,
@@ -243,7 +260,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     coin: "RVN",
     algorithm: "kawpow",
     algorithm_note:
-      "KawPow (Ravencoin) — modernes NVIDIA-Ziel mit guter lolMiner-Unterstützung.",
+      "KawPow-Scaffold für moderne NVIDIA-GPUs — austauschbares Plugin.",
     binary_path: "C:\\Miners\\lolMiner\\lolMiner.exe",
     api_port: 18089,
     pool: {
