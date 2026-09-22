@@ -1,6 +1,6 @@
 use super::adapter::{MinerAdapter, MinerKind, MinerStats, StartRequest};
 use std::io::{BufRead, BufReader};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -123,7 +123,7 @@ impl MinerAdapter for LolMinerAdapter {
             &req.algorithm
         };
 
-        let mut cmd = Command::new(&req.binary_path);
+        let mut cmd = crate::process_util::new_hidden(&req.binary_path);
         cmd.arg("--algo")
             .arg(algo)
             .arg("--pool")

@@ -1,6 +1,6 @@
 use super::adapter::{MinerAdapter, MinerKind, MinerStats, StartRequest};
 use std::io::{BufRead, BufReader};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -106,7 +106,7 @@ impl MinerAdapter for XmrigAdapter {
 
         let threads = crate::safety::capped_thread_count(num_cpus_approx(), req.threads_ratio);
 
-        let mut cmd = Command::new(&req.binary_path);
+        let mut cmd = crate::process_util::new_hidden(&req.binary_path);
         cmd.arg("-o")
             .arg(&req.pool_url)
             .arg("-u")

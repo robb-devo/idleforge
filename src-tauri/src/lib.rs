@@ -2,6 +2,7 @@ mod adaptive;
 mod commands;
 mod config;
 mod miners;
+mod process_util;
 mod safety;
 mod sensors;
 mod state;
