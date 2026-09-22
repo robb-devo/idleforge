@@ -1,0 +1,108 @@
+{
+  "$schema_note": "Copy to %APPDATA%/IdleForge/config.json (Windows) or use Settings → Import. Never put seed phrases or private keys here.",
+  "mock_mode": true,
+  "active_profile": "medium",
+  "currency": "EUR",
+  "rates": {
+    "xmr_eur": null,
+    "rvn_eur": null,
+    "note": "Leave null to show placeholders. Optionally set manual rates or wire a rate provider later — IdleForge never invents live prices."
+  },
+  "power": {
+    "assume_on_ac": true,
+    "pause_on_battery": true,
+    "max_package_watts": 120
+  },
+  "adaptive": {
+    "enabled": true,
+    "idle_seconds_before_ramp": 90,
+    "active_use_threshold_cpu_percent": 35,
+    "high_load_threshold_percent": 75,
+    "cpu_temp_limit_c": 85,
+    "gpu_temp_limit_c": 78,
+    "reduce_factor_on_active": 0.35,
+    "ramp_steps": ["pause", "low", "medium", "high", "extreme"]
+  },
+  "profiles": {
+    "low": {
+      "label": "Niedrig",
+      "cpu_intensity": 0.35,
+      "gpu_intensity": 0.3,
+      "cpu_threads_ratio": 0.4,
+      "gpu_power_limit_percent": 55
+    },
+    "medium": {
+      "label": "Mittel",
+      "cpu_intensity": 0.6,
+      "gpu_intensity": 0.55,
+      "cpu_threads_ratio": 0.65,
+      "gpu_power_limit_percent": 70
+    },
+    "high": {
+      "label": "Hoch",
+      "cpu_intensity": 0.85,
+      "gpu_intensity": 0.8,
+      "cpu_threads_ratio": 0.85,
+      "gpu_power_limit_percent": 85
+    },
+    "extreme": {
+      "label": "Extrem",
+      "cpu_intensity": 1.0,
+      "gpu_intensity": 1.0,
+      "cpu_threads_ratio": 1.0,
+      "gpu_power_limit_percent": 100
+    }
+  },
+  "wallets": [
+    {
+      "id": "xmr-main",
+      "label": "XMR Hauptwallet",
+      "coin": "XMR",
+      "receive_address": "YOUR_XMR_RECEIVE_ADDRESS_HERE",
+      "pool_worker": "idleforge-worker-1"
+    },
+    {
+      "id": "rvn-main",
+      "label": "RVN Hauptwallet",
+      "coin": "RVN",
+      "receive_address": "YOUR_RVN_RECEIVE_ADDRESS_HERE",
+      "pool_worker": "idleforge-gpu-1"
+    }
+  ],
+  "active_wallet_ids": {
+    "cpu": "xmr-main",
+    "gpu": "rvn-main"
+  },
+  "cpu": {
+    "enabled": true,
+    "adapter": "xmrig",
+    "coin": "XMR",
+    "algorithm": "randomx",
+    "binary_path": "C:\\\\Miners\\\\xmrig\\\\xmrig.exe",
+    "http_api_port": 18088,
+    "pool": {
+      "url": "pool.supportxmr.com:443",
+      "tls": true,
+      "user_template": "{address}.{worker}",
+      "pass": "x"
+    },
+    "extra_args": []
+  },
+  "gpu": {
+    "enabled": true,
+    "adapter": "lolminer",
+    "coin": "RVN",
+    "algorithm": "kawpow",
+    "algorithm_note": "KawPow (Ravencoin) — sensible modern NVIDIA algo with broad lolMiner support. Alternatives (Ergo/Autolykos2, etc.) can be added as plugins.",
+    "binary_path": "C:\\\\Miners\\\\lolMiner\\\\lolMiner.exe",
+    "api_port": 18089,
+    "pool": {
+      "url": "stratum+ssl://rvn.2miners.com:6060",
+      "tls": true,
+      "user_template": "{address}.{worker}",
+      "pass": "x"
+    },
+    "extra_args": []
+  },
+  "hardware_reference_note": "Reference hardware (e.g. ROG Strix G18 / Ryzen 9 / RTX 5070 Laptop) is example only. IdleForge detects whatever CPU/GPU is present."
+}
