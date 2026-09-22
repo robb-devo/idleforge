@@ -12,6 +12,14 @@ interface Props {
   snapshot: DashboardSnapshot;
 }
 
+function earningsFiatSum(earnings: EarningsEstimate[]): number | null {
+  const vals = earnings
+    .map((e) => e.fiat_per_day)
+    .filter((v): v is number => v != null);
+  if (!vals.length) return null;
+  return vals.reduce((a, b) => a + b, 0);
+}
+
 function earningsLabel(e: EarningsEstimate): string {
   if (e.placeholder) return "Kurs n/v";
   if (e.fiat_per_day != null) {
@@ -47,60 +55,61 @@ export function MetricsStrip({ snapshot }: Props) {
   })();
 
   const cost = snapshot.power_cost;
-  const costLabel = cost.placeholder
-    ? "Strompreis n/v"
-    : cost.eur_per_day != null
-      ? `≈ ${cost.eur_per_day.toFixed(2)} €/Tag`
-      : "—";
+  const earnSum = earningsFiatSum(snapshot.earnings);
+  const anyEarnPlaceholder = snapshot.earnings.some((e) => e.placeholder);
+
+  let economyValue: string;
+  let economyHint: string;
+  if (anyEarnPlaceholder && cost.placeholder) {
+    economyValue = "Kurse n/v";
+    economyHint = "Ertrag & Strompreis nicht gesetzt — keine erfundenen Preise";
+  } else if (earnSum != null && cost.eur_per_day != null) {
+    const net = earnSum - cost.eur_per_day;
+    economyValue = `Netto ≈ ${net.toFixed(2)} €/Tag`;
+    economyHint = `Ertrag ≈ ${earnSum.toFixed(2)} € · Strom ≈ ${cost.eur_per_day.toFixed(2)} €`;
+  } else {
+    economyValue = snapshot.earnings.map((e) => `${e.coin} ${earningsLabel(e)}`).join(" · ");
+    economyHint = cost.placeholder
+      ? "Strompreis n/v"
+      : cost.eur_per_day != null
+        ? `Strom ≈ ${cost.eur_per_day.toFixed(2)} €/Tag`
+        : "Kosten —";
+  }
 
   const cards = [
-    {
-      label: "Hashrate",
-      value: combinedHash,
-      hint: "CPU + GPU",
-    },
-    {
-      label: "Temperatur",
-      value: formatTemp(maxTemp),
-      hint: "Max. über Kanäle",
-    },
-    {
-      label: "Auslastung",
-      value: formatPercent(avgUtil),
-      hint: "Mittel CPU/GPU",
-    },
+    { label: "Hashrate", value: combinedHash, hint: "CPU + GPU" },
+    { label: "Temperatur", value: formatTemp(maxTemp), hint: "Max. · Temp-Schutz aktiv" },
+    { label: "Auslastung", value: formatPercent(avgUtil), hint: "Mittel CPU/GPU" },
     {
       label: "Leistung",
       value: formatPower(power && power > 0 ? power : null),
       hint: "Best-effort",
     },
-    {
-      label: "Laufzeit",
-      value: formatUptime(totalUptime),
-      hint: "Längster Kanal",
-    },
-    {
-      label: "Ertrag / Kosten",
-      value: snapshot.earnings.map((e) => `${e.coin} ${earningsLabel(e)}`).join(" · ") || "—",
-      hint: `Strom ${costLabel} · keine erfundenen Kurse`,
-      compact: true,
-    },
+    { label: "Laufzeit", value: formatUptime(totalUptime), hint: "Längster Kanal" },
+    { label: "Ertrag / Kosten", value: economyValue, hint: economyHint, compact: true },
   ];
 
   return (
-    <div className="metrics-row fade-in">
+    <div className="metrics-row">
       {cards.map((c, i) => (
         <motion.div
           className="metric"
           key={c.label}
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ delay: 0.04 * i, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="metric-label">{c.label}</div>
-          <div className="metric-value" style={c.compact ? { fontSize: "1.0rem" } : undefined}>
+          <motion.div
+            className="metric-value"
+            key={c.value}
+            initial={{ opacity: 0.4, filter: "blur(2px)" }}
+            animate={{ opacity: 1, filter: "blur(0px)" }}
+            transition={{ duration: 0.25 }}
+            style={c.compact ? { fontSize: "1.0rem" } : undefined}
+          >
             {c.value}
-          </div>
+          </motion.div>
           <div className="metric-hint">{c.hint}</div>
         </motion.div>
       ))}

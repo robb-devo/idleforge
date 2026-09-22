@@ -5,6 +5,7 @@ import {
   getSnapshot,
   reportUserActivity,
   runningInTauri,
+  saveConfig,
   setAdaptiveEnabled,
   setProfile,
   startAllMiners,
@@ -18,6 +19,7 @@ import { AdaptiveBanner } from "./components/AdaptiveBanner";
 import { MetricsStrip } from "./components/MetricsStrip";
 import { MinerPanel } from "./components/MinerPanel";
 import { ProfileSelector } from "./components/ProfileSelector";
+import { RatesEditor } from "./components/RatesEditor";
 import { WalletManager } from "./components/WalletManager";
 
 type View = "dashboard" | "wallets" | "settings";
@@ -193,6 +195,7 @@ export default function App() {
             <AdaptiveBanner
               status={snapshot.adaptive}
               enabled={config.adaptive.enabled}
+              onBattery={snapshot.hardware.on_battery}
               onToggle={(enabled) => void withBusy(() => setAdaptiveEnabled(enabled))}
             />
 
@@ -321,24 +324,14 @@ export default function App() {
               <div className="section-header">
                 <div>
                   <h2>Kurse & Strompreis</h2>
-                  <p>{config.rates.note}</p>
+                  <p>Manuell konfigurierbar — Ertrag und Stromkosten werden daraus geschätzt.</p>
                 </div>
               </div>
-              <div className="stat-grid">
-                <div className="stat">
-                  <div className="stat-label">XMR/{config.currency}</div>
-                  <div className="stat-value">{config.rates.xmr_eur ?? "Platzhalter"}</div>
-                </div>
-                <div className="stat">
-                  <div className="stat-label">RVN/{config.currency}</div>
-                  <div className="stat-value">{config.rates.rvn_eur ?? "Platzhalter"}</div>
-                </div>
-                <div className="stat">
-                  <div className="stat-label">Strom €/kWh</div>
-                  <div className="stat-value">
-                    {config.rates.electricity_eur_per_kwh ?? "Platzhalter"}
-                  </div>
-                </div>
+              <RatesEditor
+                config={config}
+                onSave={(next) => void withBusy(() => saveConfig(next))}
+              />
+              <div className="stat-grid" style={{ marginTop: 14 }}>
                 <div className="stat">
                   <div className="stat-label">Kosten (geschätzt)</div>
                   <div className="stat-value" style={{ fontSize: "0.9rem" }}>
@@ -347,6 +340,12 @@ export default function App() {
                       : snapshot.power_cost.eur_per_day != null
                         ? `≈ ${snapshot.power_cost.eur_per_day.toFixed(2)} €/Tag`
                         : "—"}
+                  </div>
+                </div>
+                <div className="stat">
+                  <div className="stat-label">Hinweis</div>
+                  <div className="stat-value" style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                    {snapshot.power_cost.note}
                   </div>
                 </div>
               </div>

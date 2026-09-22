@@ -1,96 +1,115 @@
-# IdleForge — Architecture
+# IdleForge — Architecture & UI Plan
 
-Windows-only hobby desktop app that **orchestrates external miners**. No mining algorithms, binaries, or secrets live in this repository.
+Windows-only hobby desktop app that **orchestrates external miners**.  
+No mining algorithms, binaries, seed phrases, or private keys in this repository.
 
-## Goals
+This document is the design source of truth for the MVP. Implementation follows it.
 
-| Goal | Approach |
-|------|----------|
-| Premium finished feel | Tauri 2 + React dark UI, German labels, motion |
-| Safe by default | Receive addresses only; mock mode without miners |
-| Extensible | `MinerAdapter` trait — plug in new coins/miners later |
-| Device-agnostic | Detect hardware; user supplies binaries, pools, wallets |
+---
+
+## Product feel
+
+Premium dark gaming/tech control surface — calm, finished, German labels.  
+Clear **cards** for metrics and miner channels. Fluid motion for state changes.  
+Not a debug console, not RGB clutter.
 
 ## UI structure
 
 ```
 ┌──────── Sidebar ────────┬────────── Main ──────────────────────────┐
-│ IdleForge               │ Header (view title)                      │
-│ · Übersicht             │ Adaptive status banner                   │
-│ · Wallets               │ Metric cards: Hashrate · Temp · Util ·   │
-│ · Einstellungen         │   Power · Uptime · Ertrag/Kosten         │
-│                         │ CPU card  │  GPU card                    │
-│ [Mock/Live badge]       │ Profiles: Idle→Extreme                   │
-│                         │ Start All / Stop All                     │
+│ IdleForge               │ Header + Alles starten / Alles stoppen   │
+│ · Übersicht             │ Adaptive banner + Netzteil/Akku chip     │
+│ · Wallets               │ Metric cards (6):                        │
+│ · Einstellungen         │   Hashrate · Temp · Util · Power ·       │
+│                         │   Laufzeit · Ertrag/Kosten               │
+│ [Mock/Live]             │ CPU card          │ GPU card             │
+│                         │ Profiles: Idle → Extreme (5)             │
 └─────────────────────────┴──────────────────────────────────────────┘
 ```
 
-**Views**
+| View | Purpose |
+|------|---------|
+| **Übersicht** | Live control: metrics, CPU/GPU, profiles, adaptive |
+| **Wallets** | Multi receive-address + pool worker; assign to CPU/GPU |
+| **Einstellungen** | Hardware, miner paths, editable €/kWh & rates, adaptive limits |
 
-1. **Übersicht** — live control surface (primary)
-2. **Wallets** — multi receive-address + pool worker switcher
-3. **Einstellungen** — paths, rates, €/kWh, adaptive limits, hardware
+### Cards (Übersicht)
 
-**State model (frontend)**
+1. **Hashrate** — combined CPU + GPU  
+2. **Temperatur** — max across channels (temp protection feeds adaptive)  
+3. **Auslastung** — mean utilization  
+4. **Leistung** — watts best-effort  
+5. **Laufzeit** — longest channel uptime  
+6. **Ertrag / Kosten** — fiat earnings vs Stromkosten; Netto when both known  
 
-- `DashboardSnapshot` polled ~1 Hz (Tauri invoke or `MockEngine`)
-- Local `AppConfig` mirror for wallets/profiles/settings
-- User activity → `report_user_activity` for adaptive reduce/ramp
+Plus dedicated **CPU** and **GPU** channel cards (independent Start/Stop).
+
+### Frontend state
+
+- `DashboardSnapshot` polled ~1 Hz (`MockEngine` or Tauri invoke)
+- `AppConfig` for profiles, wallets, rates, adaptive, paths
+- Pointer/keyboard activity → `report_user_activity` → adaptive reduce/ramp
+
+---
+
+## Controls (behavior)
+
+| Control | Behavior |
+|---------|----------|
+| Profiles | `idle` · `low` · `medium` · `high` · `extreme` |
+| Start/Stop | Per channel + **Alles starten / Alles stoppen** |
+| Temp protection | Adaptive → `temp_limit` → effective low / throttle |
+| Netzteil / Akku | Sensors; `pause_on_battery` → pause mining |
+| Active use / load | Reduce intensity (`reduce_factor_on_active`) |
+| Idle | After `idle_seconds_before_ramp`, ramp to target profile |
+| Economics | Manual `xmr_eur` / `rvn_eur` / `electricity_eur_per_kwh` — never invent live prices |
+
+---
 
 ## Backend modules (`src-tauri`)
 
 ```
-commands.rs     Tauri IPC surface
-state.rs        Runtime: miners + adaptive + sensors + config
-config.rs       Load/save %APPDATA%/IdleForge/config.json
-adaptive/       Idle ramp, active reduce, temp/power/battery rules
+commands.rs     Tauri IPC
+state.rs        Runtime orchestration
+config.rs       %APPDATA%/IdleForge/config.json
+adaptive/       Idle ramp, active reduce, temp/power/battery
 sensors/        sysinfo + nvidia-smi + battery (graceful degradation)
 miners/
-  adapter.rs    MinerAdapter trait
-  xmrig.rs      CPU · XMR · RandomX (Phase 1)
-  lolminer.rs   GPU · KawPow scaffold (replaceable plugin)
+  adapter.rs    MinerAdapter trait (extensibility seam)
+  xmrig.rs      Phase 1 — CPU XMR RandomX (external process)
+  lolminer.rs   GPU scaffold — real adapter hooks, swappable later
 ```
 
 ### MinerAdapter
 
 ```text
-start(StartRequest) → spawn external process (or mock)
-stop()              → kill process
-poll_stats()        → HTTP API / stdout → hashrate, shares, …
+start(StartRequest)  → spawn external binary (or mock)
+stop()               → kill child
+poll_stats()         → HTTP API / stdout → hashrate, shares, …
 ```
 
-Intensity comes from **profile × adaptive factor**. CPU and GPU channels are independent.
+Intensity = **profile × adaptive factor**. Channels are independent.  
+Adding a miner later = new adapter module + config `adapter` id — no algorithm code.
 
-### Profiles (5)
-
-`idle` → `low` → `medium` → `high` → `extreme`
-
-Adaptive may force a lower effective profile or `pause` (battery / hard limits).
-
-### Economics (honest placeholders)
-
-- Optional fiat rates for coins (`xmr_eur`, …)
-- Optional `electricity_eur_per_kwh`
-- UI shows **estimated earnings** and **power cost** only when rates are set; otherwise clear “Kurs n/v” / “Strompreis n/v” — never invent live market prices.
-
-## Mock mode
-
-`mock_mode: true` (default in example config + browser Vite session):
-
-- No binary required
-- Synthetic hashrate / temp / power / shares
-- Full UI walkthrough on any OS via `npm run dev`
-
-## Phase roadmap
+### Mining scope
 
 | Phase | Scope |
 |-------|--------|
-| **1 (this MVP)** | XMR/XMRig CPU live path + GPU adapter/UI scaffold + mock |
-| **2** | Harden GPU plugin of choice; richer Windows sensors (NVAPI/LHM) |
-| **3** | More adapters via plugin registry keyed by `config.*.adapter` |
+| **1 (MVP)** | XMRig/XMR CPU live path; GPU fully wired in UI/state/adapter (scaffold OK) |
+| **2** | Harden chosen GPU plugin; richer Windows sensors |
+| **3** | Adapter registry by `config.*.adapter` |
+
+---
+
+## Mock mode
+
+Default for demo: `npm run dev` runs the finished UI without Tauri or miner binaries.  
+Synthetic metrics prove cards, controls, adaptive, and economics placeholders.
+
+---
 
 ## Non-goals
 
-- Implementing RandomX / KawPow / any PoW in-process
-- Storing seed phrases or private keys
-- Shipping miner executables
+- Implementing any PoW algorithm in-process  
+- Committing miner executables or secrets  
+- Storing seed phrases / private keys (receive addresses only)
