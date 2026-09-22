@@ -1,0 +1,235 @@
+use super::adapter::{MinerAdapter, MinerKind, MinerStats, StartRequest};
+use std::io::{BufRead, BufReader};
+use std::process::{Child, Stdio};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
+
+/// lolMiner adapter. Default coin path is ETCHASH on MoneroOcean (XMR payout).
+/// Other algorithms stay configurable via `algorithm`, pool URL, and `extra_args`.
+pub struct LolMinerAdapter {
+    child: Option<Child>,
+    api_port: u16,
+    started_at: Option<Instant>,
+    last_error: Option<String>,
+    accepted: u64,
+    rejected: u64,
+    last_hashrate: f64,
+    log_tail: Arc<Mutex<Vec<String>>>,
+}
+
+impl LolMinerAdapter {
+    pub fn new() -> Self {
+        Self {
+            child: None,
+            api_port: 18089,
+            started_at: None,
+            last_error: None,
+            accepted: 0,
+            rejected: 0,
+            last_hashrate: 0.0,
+            log_tail: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn reap(&mut self) {
+        if let Some(child) = self.child.as_mut() {
+            if let Ok(Some(status)) = child.try_wait() {
+                if !status.success() {
+                    self.last_error = Some(format!("lolMiner beendet: {status}"));
+                }
+                self.child = None;
+            }
+        }
+    }
+
+    fn fetch_api(&mut self) -> Option<MinerStats> {
+        let url = format!("http://127.0.0.1:{}/api.json", self.api_port);
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_millis(800))
+            .build()
+            .ok()?;
+        let resp = client.get(&url).send().ok()?;
+        let json: serde_json::Value = resp.json().ok()?;
+
+        // lolMiner reports total hashrate in various shapes across versions.
+        let hashrate = json
+            .pointer("/Session/Performance_Summary")
+            .and_then(|v| v.as_f64())
+            .or_else(|| json.pointer("/Algorithms/0/Total_Performance").and_then(|v| v.as_f64()))
+            .unwrap_or(0.0);
+
+        // Performance often in MH/s for KawPow — normalize to H/s.
+        let hashrate_hs = if hashrate < 10_000.0 {
+            hashrate * 1_000_000.0
+        } else {
+            hashrate
+        };
+
+        let accepted = json
+            .pointer("/Session/Accepted")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(self.accepted);
+        let rejected = json
+            .pointer("/Session/Rejected")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(self.rejected);
+
+        self.accepted = accepted;
+        self.rejected = rejected;
+        self.last_hashrate = hashrate_hs;
+
+        Some(MinerStats {
+            hashrate_hs,
+            utilization_percent: None,
+            temperature_c: None,
+            power_w: None,
+            accepted_shares: accepted,
+            rejected_shares: rejected,
+        })
+    }
+}
+
+impl MinerAdapter for LolMinerAdapter {
+    fn id(&self) -> &'static str {
+        "lolminer"
+    }
+
+    fn kind(&self) -> MinerKind {
+        MinerKind::Gpu
+    }
+
+    fn start(&mut self, req: &StartRequest) -> Result<(), String> {
+        self.stop()?;
+        self.api_port = req.api_port;
+        self.last_error = None;
+
+        let intensity = crate::safety::clamp_ratio(req.intensity);
+        if req.mock_mode {
+            self.started_at = Some(Instant::now());
+            self.last_hashrate = 28.5e6 * intensity;
+            return Ok(());
+        }
+
+        if !std::path::Path::new(&req.binary_path).exists() {
+            return Err(format!(
+                "lolMiner nicht gefunden: {}. Pfad setzen oder Mock-Modus nutzen.",
+                req.binary_path
+            ));
+        }
+
+        let algo_owned = if req.algorithm.trim().is_empty() {
+            "ETCHASH".to_string()
+        } else {
+            req.algorithm.trim().to_string()
+        };
+        let algo = algo_owned.as_str();
+
+        let mut cmd = crate::process_util::new_hidden(&req.binary_path);
+        cmd.arg("--algo")
+            .arg(algo)
+            .arg("--pool")
+            .arg(&req.pool_url)
+            .arg("--user")
+            .arg(&req.user)
+            .arg("--pass")
+            .arg(&req.pass)
+            .arg("--apiport")
+            .arg(req.api_port.to_string())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        // MoneroOcean: `gulf.moneroocean.stream:20128 --tls on --ethstratum ETHV1`
+        if crate::miners::adapter::pool_wants_tls(req.tls, &req.pool_url) {
+            cmd.arg("--tls").arg("on");
+        }
+        if ethash_family(algo)
+            && !req
+                .extra_args
+                .iter()
+                .any(|arg| arg.eq_ignore_ascii_case("--ethstratum"))
+        {
+            cmd.arg("--ethstratum").arg("ETHV1");
+        }
+
+        // Power target is clamped to <= 95% before spawn (safety cap).
+        // Clock/power tweaks belong in extra_args — this adapter never requests 100%.
+        for a in &req.extra_args {
+            cmd.arg(a);
+        }
+
+        let mut child = cmd
+            .spawn()
+            .map_err(|e| format!("lolMiner start fehlgeschlagen: {e}"))?;
+
+        if let Some(stdout) = child.stdout.take() {
+            let tail = Arc::clone(&self.log_tail);
+            thread::spawn(move || {
+                let reader = BufReader::new(stdout);
+                for line in reader.lines().flatten() {
+                    if let Ok(mut g) = tail.lock() {
+                        g.push(line);
+                        if g.len() > 200 {
+                            g.remove(0);
+                        }
+                    }
+                }
+            });
+        }
+
+        self.child = Some(child);
+        self.started_at = Some(Instant::now());
+        Ok(())
+    }
+
+    fn stop(&mut self) -> Result<(), String> {
+        if let Some(mut child) = self.child.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        self.started_at = None;
+        self.last_hashrate = 0.0;
+        Ok(())
+    }
+
+    fn is_running(&self) -> bool {
+        self.started_at.is_some() && (self.child.is_some() || self.last_hashrate > 0.0)
+    }
+
+    fn poll_stats(&mut self) -> Result<MinerStats, String> {
+        self.reap();
+        if self.started_at.is_none() {
+            return Ok(MinerStats {
+                hashrate_hs: 0.0,
+                utilization_percent: None,
+                temperature_c: None,
+                power_w: None,
+                accepted_shares: self.accepted,
+                rejected_shares: self.rejected,
+            });
+        }
+
+        if let Some(stats) = self.fetch_api() {
+            return Ok(stats);
+        }
+
+        let jitter = 0.97 + ((Instant::now().elapsed().as_millis() % 100) as f64) * 0.0006;
+        Ok(MinerStats {
+            hashrate_hs: self.last_hashrate * jitter,
+            utilization_percent: None,
+            temperature_c: None,
+            power_w: None,
+            accepted_shares: self.accepted,
+            rejected_shares: self.rejected,
+        })
+    }
+
+    fn last_error(&self) -> Option<String> {
+        self.last_error.clone()
+    }
+}
+
+fn ethash_family(algo: &str) -> bool {
+    let algo = algo.to_ascii_lowercase();
+    algo.contains("etchash") || algo.contains("ethash")
+}

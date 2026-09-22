@@ -1,0 +1,98 @@
+:root {
+  --bg-0: #07080a;
+  --bg-1: #0c0e12;
+  --bg-2: #12151b;
+  --bg-3: #181c24;
+  --surface: rgba(18, 21, 27, 0.72);
+  --surface-solid: #12151b;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.1);
+  --text: #e8eaef;
+  --text-muted: #8b93a7;
+  --text-dim: #5c6478;
+  --accent: #d4a574;
+  --accent-soft: rgba(212, 165, 116, 0.14);
+  --accent-strong: #e8b984;
+  --ok: #5ecf9a;
+  --ok-soft: rgba(94, 207, 154, 0.12);
+  --warn: #e0b45c;
+  --warn-soft: rgba(224, 180, 92, 0.12);
+  --danger: #e06c75;
+  --danger-soft: rgba(224, 108, 117, 0.12);
+  --cpu: #7eb6ff;
+  --gpu: #d4a574;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  --font-sans: "DM Sans", "Segoe UI", sans-serif;
+  --font-display: "Syne", "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg-0);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1100px 700px at 12% -10%, rgba(212, 165, 116, 0.12), transparent 55%),
+    radial-gradient(900px 600px at 90% 0%, rgba(126, 182, 255, 0.08), transparent 50%),
+    radial-gradient(800px 500px at 50% 100%, rgba(94, 207, 154, 0.04), transparent 55%),
+    linear-gradient(180deg, #090b0f 0%, #07080a 100%);
+  z-index: -2;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  z-index: -1;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+a {
+  color: var(--accent);
+}
+
+::selection {
+  background: rgba(212, 165, 116, 0.35);
+}
